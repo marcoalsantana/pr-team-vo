@@ -1,0 +1,66 @@
+// app/admin/page.jsx
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { supabase } from '../../lib/supabase';
+
+export default function Admin(){
+  const r = useRouter();
+  const [session, setSession] = useState(null);
+  const [me, setMe] = useState(null);
+  const [profiles, setProfiles] = useState([]);
+
+  useEffect(()=>{
+    async function boot(){
+      const { data } = await supabase.auth.getSession();
+      if(!data?.session){ r.replace('/'); return; }
+      setSession(data.session);
+
+      // pega meu perfil
+      const { data: myp } = await supabase.from('profiles').select('*').eq('id', data.session.user.id).single();
+      if(!myp || myp.role !== 'coach'){ r.replace('/inicio'); return; }
+      setMe(myp);
+
+      const { data: all } = await supabase.from('profiles').select('id, username, full_name, weight_kg, height_cm, experience_level, created_at').order('created_at', { ascending: false }).limit(200);
+      setProfiles(all || []);
+    }
+    boot();
+  },[r]);
+
+  if(!session || !me) return null;
+
+  return (
+    <main className="container" style={{paddingTop:16, paddingBottom:40}}>
+      <div className="topbar"><div className="brand"><h1>Admin • PR TEAM</h1></div></div>
+      <div className="spacer"/>
+      <div className="card" style={{overflowX:'auto'}}>
+        <div className="title" style={{fontSize:18, marginBottom:8}}>Alunos ({profiles.length})</div>
+        <table style={{width:'100%', borderCollapse:'collapse', fontSize:13}}>
+          <thead>
+            <tr style={{textAlign:'left', color:'#9aa0b4'}}>
+              <th style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.08)'}}>Nome</th>
+              <th style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.08)'}}>Username</th>
+              <th style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.08)'}}>Nível</th>
+              <th style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.08)'}}>Peso</th>
+              <th style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.08)'}}>Altura</th>
+              <th style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.08)'}}>Criado em</th>
+            </tr>
+          </thead>
+          <tbody>
+          {profiles.map((p)=>(
+            <tr key={p.id}>
+              <td style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.06)'}}>{p.full_name || '-'}</td>
+              <td style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.06)'}}>{p.username || '-'}</td>
+              <td style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.06)'}}>{p.experience_level || '-'}</td>
+              <td style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.06)'}}>{p.weight_kg ?? '-'}</td>
+              <td style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.06)'}}>{p.height_cm ?? '-'}</td>
+              <td style={{padding:'8px 6px', borderBottom:'1px solid rgba(255,255,255,.06)'}}>{new Date(p.created_at).toLocaleString()}</td>
+            </tr>
+          ))}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  );
+}
