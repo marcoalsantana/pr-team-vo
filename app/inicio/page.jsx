@@ -246,6 +246,7 @@ export default function InicioPage() {
   const [showMethods, setShowMethods] = useState(false);
   const [showDaily, setShowDaily] = useState(false);
   const [openAccount, setOpenAccount] = useState(false);
+  const [showVacumVideo, setShowVacumVideo] = useState(false);
   const go = (href) => router.push(href);
 
   // Exemplo de progresso mensal (mock)
@@ -506,21 +507,67 @@ export default function InicioPage() {
 </section>
 
         {/* Plano alimentar em destaque (refinado) */}
-<section
+        <section
   style={{
-    background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
+    // container fino, só pra manter o mesmo respiro do layout
     border: `1px solid ${THEME.stroke}`,
-    borderRadius: 18,
-    padding: 22,
-    color: THEME.text,
-    boxShadow: THEME.softShadow,
+    borderRadius: 14,
+    padding: 0,
+    background: 'transparent',
+    boxShadow: 'none',
   }}
 >
-  <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 8 }}>
-    Plano alimentar em destaque
-  </div>
-  <div style={{ fontSize: 14, color: THEME.textMute, lineHeight: 1.6 }}>
-    Revise suas metas de macros para hoje.
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: 10,
+    }}
+  >
+    {/* Card 1 — Cardio diário */}
+    <div
+      style={{
+        background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
+        border: `1px solid ${THEME.stroke}`,
+        borderRadius: 14,
+        padding: '12px 14px',
+        color: THEME.text,
+        boxShadow: THEME.softShadow,
+        minHeight: 90,
+        display: 'grid',
+        alignContent: 'center',
+      }}
+    >
+      <div style={{ fontSize: 13, color: THEME.textDim, marginBottom: 4 }}>Cardio</div>
+      <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.35 }}>
+        Faça 30 minutos de cárdio todos os dias (intensidade moderada)
+      </div>
+    </div>
+
+    {/* Card 2 — Vacum diário (abre modal de vídeo) */}
+    <div
+      onClick={() => setShowVacumVideo(true)}
+      style={{
+        background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
+        border: `1px solid ${THEME.stroke}`,
+        borderRadius: 14,
+        padding: '12px 14px',
+        color: THEME.text,
+        boxShadow: THEME.softShadow,
+        minHeight: 90,
+        display: 'grid',
+        alignContent: 'center',
+        cursor: 'pointer',
+      }}
+    >
+      <div style={{ fontSize: 13, color: THEME.textDim, marginBottom: 4 }}>Vacum</div>
+      <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.35 }}>
+        Faça 5 séries de vacum todos os dias em jejum
+      </div>
+      <div style={{ fontSize: 12, color: THEME.red, marginTop: 6 }}>
+        toque para ver o vídeo
+      </div>
+    </div>
   </div>
 </section>
       </main>
@@ -563,6 +610,25 @@ export default function InicioPage() {
         </div>
       </Modal>
 
+      <Modal
+  open={showVacumVideo}
+  onClose={() => setShowVacumVideo(false)}
+  title="Vacum (tutorial)"
+>
+  <div
+    style={{
+      height: 220,
+      border: `1px dashed ${THEME.stroke}`,
+      borderRadius: 12,
+      display: 'grid',
+      placeItems: 'center',
+      color: THEME.textDim,
+      background: '#141417',
+    }}
+  >
+    Vídeo em breve…
+  </div>
+</Modal>
       <BottomTabs active="inicio" onNavigate={go} />
     </div>
   );

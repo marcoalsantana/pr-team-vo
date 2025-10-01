@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import BottomTabs from '../../components/BottomTabs';
 
 /* ----------------------- THEME ----------------------- */
 const THEME = {
@@ -58,49 +59,6 @@ function Modal({ open, onClose, title, children, align = 'center', maxWidth = 42
         {children}
       </div>
     </div>
-  );
-}
-
-function BottomTabs({ active = 'treino', onNavigate }) {
-  const items = [
-    { key: 'inicio', labelTop: 'Início', labelBottom: '', icon: '🏠', href: '/inicio' },
-    { key: 'mobilidades', labelTop: 'Mobilidades e', labelBottom: 'Alongamentos', icon: '🤸', href: '/mobilidades' },
-    { key: 'treino', labelTop: 'Plano de', labelBottom: 'Treino', icon: '🏋️', href: '/treino' },
-    { key: 'alimentar', labelTop: 'Plano', labelBottom: 'Alimentar', icon: '🥗', href: '/alimentar' },
-    { key: 'evolucao', labelTop: 'Sua', labelBottom: 'Evolução', icon: '📈', href: '/evolucao' },
-  ];
-  return (
-    <nav
-      style={{
-        position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900,
-        background: '#101012', borderTop: `1px solid ${THEME.strokeSoft}`,
-        display: 'flex', justifyContent: 'space-around',
-        padding: '10px 8px calc(env(safe-area-inset-bottom) + 10px)',
-      }}
-    >
-      {items.map((it) => {
-        const isActive = it.key === active;
-        return (
-          <button
-            key={it.key}
-            onClick={() => onNavigate(it.href)}
-            style={{
-              background: 'transparent', border: 'none',
-              color: isActive ? THEME.text : THEME.textMute, opacity: isActive ? 1 : 0.7,
-              display: 'flex', flexDirection: 'column', alignItems: 'center',
-              gap: 4, padding: 6, fontSize: 12,
-              borderBottom: isActive ? `2px solid ${THEME.red}` : '2px solid transparent',
-              borderRadius: 6, minWidth: 64, cursor: 'pointer',
-            }}
-          >
-            <span style={{ fontSize: 18, lineHeight: 1 }}>{it.icon}</span>
-            <span style={{ lineHeight: 1.1, textAlign: 'center' }}>
-              {it.labelTop}{it.labelBottom ? <><br />{it.labelBottom}</> : ''}
-            </span>
-          </button>
-        );
-      })}
-    </nav>
   );
 }
 
@@ -184,6 +142,8 @@ function AllWorkoutsModal({ open, onClose, onSelect }) {
 /* ----------------------- PÁGINA: PLANO DE TREINO ----------------------- */
 export default function PlanoTreinoPage() {
   const router = useRouter();
+  const [openAccount, setOpenAccount] = useState(false);
+  const username = 'aluno'; // depois podemos puxar do login real
   const [openAll, setOpenAll] = useState(false);
 
   const go = (href) => router.push(href);
@@ -214,33 +174,38 @@ export default function PlanoTreinoPage() {
     >
       {/* Header */}
       <header
-        style={{
-          position: 'sticky', top: 0, zIndex: 800,
-          padding: '16px 18px 12px',
-          borderBottom: `1px solid ${THEME.strokeSoft}`,
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0))',
-          backdropFilter: 'blur(2px)',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: .5, display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span style={{ width: 10, height: 10, borderRadius: 2, background: THEME.red, boxShadow: '0 0 0 2px rgba(193,18,31,0.25)' }} />
-              Plano de Treino
-            </div>
-          </div>
-          <button
-            aria-label="Voltar ao início"
-            onClick={() => go('/inicio')}
-            style={{
-              width: 40, height: 40, borderRadius: 12,
-              border: `1px solid ${THEME.stroke}`,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-              color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
-            }}
-          >‹</button>
-        </div>
-      </header>
+  style={{
+    position: 'sticky', top: 0, zIndex: 800,
+    padding: '16px 18px 12px',
+    borderBottom: `1px solid ${THEME.strokeSoft}`,
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0))',
+    backdropFilter: 'blur(2px)',
+  }}
+>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div>
+      <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: .5, display: 'flex', gap: 8, alignItems: 'center' }}>
+        <span style={{ width: 10, height: 10, borderRadius: 2, background: THEME.red, boxShadow: '0 0 0 2px rgba(193,18,31,0.25)' }} />
+        Plano de Treino
+      </div>
+      {/* sem subtítulo */}
+    </div>
+
+    {/* Ícone de conta (abre modal) */}
+    <button
+      aria-label="Conta"
+      onClick={() => setOpenAccount(true)}
+      style={{
+        width: 44, height: 44, borderRadius: 12,
+        border: `1px solid ${THEME.stroke}`,
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+        color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
+      }}
+    >
+      👤
+    </button>
+  </div>
+</header>
 
       {/* Conteúdo */}
       <main style={{ padding: '16px 16px 10px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 40 }}>
@@ -430,7 +395,7 @@ export default function PlanoTreinoPage() {
               <div style={{ fontSize:12, color:THEME.textMute }}>rumo à consistência máxima</div>
             </div>
           </div>
-        </section>
+         </section>
       </main>
 
       {/* Modal: ver todos os treinos */}
@@ -443,7 +408,46 @@ export default function PlanoTreinoPage() {
         }}
       />
 
-      <BottomTabs active="treino" onNavigate={go} />
+      {/* Modal de Conta */}
+      <Modal open={openAccount} onClose={() => setOpenAccount(false)} title="Conta" align="top">
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 46,
+                height: 46,
+                borderRadius: 10,
+                background: '#17171A',
+                border: `1px solid ${THEME.stroke}`,
+                display: 'grid',
+                placeItems: 'center',
+              }}
+            >
+              👤
+            </div>
+            <div>
+              <div style={{ fontWeight: 900 }}>{username}</div>
+              <div style={{ fontSize: 12, color: THEME.textMute }}>Conta ativa</div>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/')}
+            style={{
+              background: '#1A1A1D',
+              border: `1px solid ${THEME.stroke}`,
+              color: THEME.text,
+              borderRadius: 12,
+              padding: '12px 14px',
+              cursor: 'pointer',
+              textAlign: 'center',
+            }}
+          >
+            Sair
+          </button>
+        </div>
+      </Modal>
+
+      <BottomTabs />
     </div>
   );
 }
