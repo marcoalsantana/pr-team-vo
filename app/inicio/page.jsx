@@ -1,488 +1,569 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
-import { supabase } from '../../lib/supabase';
-import BottomTabs from '../../components/BottomTabs';
-import Modal from '../../components/Modal';
-import WeekStrip from '../../components/WeekStrip';
+import React, { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 const THEME = {
-  bg: '#1C1C1C',
-  card: '#141414',
-  stroke: 'rgba(255,255,255,0.10)',
+  bg: '#0E0E10',
+  bgGradTop: 'rgba(193,18,31,0.08)',
+  bgGradMid: 'rgba(255,255,255,0.02)',
+  bgGradBot: 'rgba(0,0,0,0)',
+  techLine: 'rgba(255,255,255,0.05)',
+  techLine2: 'rgba(193,18,31,0.08)',
+
+  surface: '#121214',
+  stroke: 'rgba(255,255,255,0.08)',
+  strokeSoft: 'rgba(255,255,255,0.06)',
+
   text: '#FFFFFF',
-  muted: '#B9B9B9',
+  textDim: '#CFCFD2',
+  textMute: '#9B9BA1',
+
   red: '#C1121F',
   red2: '#E04141',
-  shadow: '0 12px 28px rgba(0,0,0,0.35)',
-  softShadow: '0 10px 18px rgba(0,0,0,0.28)',
+  green: '#27C281',
+
+  shadow: '0 10px 22px rgba(0,0,0,0.30)',
+  softShadow: '0 8px 18px rgba(0,0,0,0.22)',
 };
 
-const CARD_BASE_STYLE = {
-  background: THEME.card,
-  borderRadius: 16,
-  border: `1px solid ${THEME.stroke}`,
-  boxShadow: THEME.shadow,
-};
-
-const CTA_BUTTON_STYLE = {
-  border: '0',
-  borderRadius: 12,
-  background: `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`,
-  color: THEME.text,
-  fontWeight: 900,
-  fontSize: 14,
-  letterSpacing: '0.04em',
-  padding: '12px 18px',
-  cursor: 'pointer',
-  boxShadow: '0 12px 26px rgba(224,65,65,0.28)',
-  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-};
-
-const MODAL_CONTENT_STYLE = {
-  display: 'flex',
-  flexDirection: 'column',
-  gap: 18,
-  width: '100%',
-  maxWidth: 380,
-  margin: '0 auto',
-  background: 'transparent',
-};
-
-const CALENDAR_DAYS = [
-  { label: 'sab, 27', complete: false },
-  { label: 'dom, 28', complete: true },
-  { label: 'seg, 29', complete: true, today: true },
-  { label: 'ter, 30', complete: false },
-  { label: 'qua, 01', complete: false },
-];
-
-const BOTTOM_TAB_PATHS = ['/inicio', '/mobilidades', '/treino', '/alimentar'];
-
-function Header({ onAvatarClick }) {
+function Modal({ open, onClose, title, children, align = 'center' }) {
+  if (!open) return null;
+  const alignStyle = align === 'top' ? { alignItems: 'flex-start', paddingTop: 20 } : { alignItems: 'center' };
   return (
-    <header
+    <div
+      onClick={onClose}
       style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.04), rgba(0,0,0,0))',
-        backdropFilter: 'blur(6px)',
-        padding: '16px 20px 14px',
-        borderBottom: `1px solid ${THEME.stroke}`,
-        boxShadow: THEME.softShadow,
+        position: 'fixed', inset: 0, zIndex: 1000,
+        display: 'flex', justifyContent: 'center', ...alignStyle,
+        background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
       }}
     >
       <div
+        onClick={(e) => e.stopPropagation()}
         style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
+          width: '94%', maxWidth: 420, background: THEME.surface,
+          border: `1px solid ${THEME.stroke}`, borderRadius: 16,
+          boxShadow: THEME.shadow, color: THEME.text, padding: 16,
         }}
       >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span
-            style={{
-              fontSize: 27,
-              textTransform: 'uppercase',
-              fontWeight: 900,
-              letterSpacing: '0.5em',
-            }}
-          >
-            PR TEAM
-          </span>
-          <span style={{ fontSize: 12, color: THEME.muted, letterSpacing: '0.04em' }}>Painel do aluno</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 14, color: THEME.muted }}>
-            Olá, <strong style={{ color: THEME.text }}>Pedro</strong>!
-          </span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>{title}</div>
           <button
-            type="button"
-            aria-label="Abrir menu de conta"
-            onClick={onAvatarClick}
+            aria-label="Fechar" onClick={onClose}
+            style={{ background: 'transparent', border: 'none', color: THEME.textDim, fontSize: 20, cursor: 'pointer' }}
+          >×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function WeekStrip({ today = new Date(), days = 5 }) {
+  const doneMap = useMemo(() => ({ 0: true, 1: false, 2: true, 3: false, 4: false }), []);
+  const items = useMemo(() => {
+    const a = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      a.push(d);
+    }
+    return a.reverse(); // garante que o mais antigo fica à esquerda e hoje à direita
+  }, [today, days]);
+
+  return (
+    <div style={{ display: 'flex', gap: 10 }}>
+      {items.map((d, idx) => {
+        const label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const isToday = idx === items.length - 1;
+        const done = !!doneMap[idx];
+        return (
+          <div
+            key={idx}
             style={{
-              width: 44,
-              height: 44,
-              borderRadius: '999px',
-              border: `1px solid ${THEME.stroke}`,
-              background: 'linear-gradient(135deg, rgba(193,18,31,0.18), rgba(193,18,31,0.08))',
-              display: 'grid',
-              placeItems: 'center',
+              background: '#17171A',
+              border: `1px solid ${THEME.strokeSoft}`,
+              borderRadius: 14,
+              minWidth: 70,
+              padding: '9px 12px',
+              textAlign: 'center',
               color: THEME.text,
-              cursor: 'pointer',
+              position: 'relative',
+              boxShadow: isToday ? '0 0 0 2px #C1121F' : 'none',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
-              <path
-                d="M12 12a4.5 4.5 0 1 0-4.5-4.5A4.5 4.5 0 0 0 12 12Zm0 2.1C7.32 14.1 4.65 16.44 4.65 19.2H19.35c0-2.76-2.67-5.1-7.35-5.1Z"
-                fill="currentColor"
-              />
-            </svg>
-          </button>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function CalendarCard({ onStart }) {
-  return (
-    <section
-      style={{
-        ...CARD_BASE_STYLE,
-        padding: '16px 16px 18px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 18,
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 16,
-        }}
-      >
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          <span style={{ fontSize: 12, color: THEME.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            Ficha atual
-          </span>
-          <strong style={{ fontSize: 20, letterSpacing: '0.04em', fontWeight: 700 }}>Ficha 1</strong>
-        </div>
-        <button type="button" onClick={onStart} style={CTA_BUTTON_STYLE}>
-          Iniciar
-        </button>
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
-          gap: 12,
-        }}
-      >
-        {CALENDAR_DAYS.map((day) => {
-          const [weekdayRaw = '', dayNumber = ''] = day.label.split(', ');
-          const weekday = weekdayRaw.toUpperCase();
-          return (
-            <div
-              key={day.label}
-              style={{
-                borderRadius: 12,
-                border: `1px solid ${THEME.stroke}`,
-                background: '#1F1F1F',
-                padding: '8px 10px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 8,
-                color: day.today ? THEME.text : THEME.muted,
-                boxShadow: day.today
-                  ? '0 0 0 2px #C1121F, 0 8px 14px rgba(193,18,31,0.25)'
-                  : 'none',
-              }}
-            >
-              <span style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase' }}>{weekday}</span>
-              <span style={{ fontSize: 24, fontWeight: 700, lineHeight: 1 }}>{dayNumber}</span>
-              <span style={{ fontSize: 16 }}>{day.complete ? '✅' : '❌'}</span>
+            <div style={{ fontSize: 11, color: THEME.textMute, marginBottom: 2 }}>
+              {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'][d.getDay()]}
             </div>
-          );
-        })}
-      </div>
-    </section>
+            <div style={{ fontSize: 15, fontWeight: 900 }}>{label}</div>
+            <div style={{ marginTop: 6, fontSize: 13 }}>{done ? '✅' : '—'}</div>
+            <div
+              style={{
+                position: 'absolute', top: 4, left: 12, right: 12, height: 1,
+                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)',
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
-function SummaryCard() {
+function GoalChips() {
+  const chips = [
+    { label: 'Cardio 30min', ok: true },
+    { label: 'Água 2L', ok: false },
+    { label: 'Alongar', ok: true },
+  ];
   return (
-    <section
-      style={{
-        ...CARD_BASE_STYLE,
-        padding: '20px 22px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 18,
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: THEME.muted }}>
-          Resumo do aluno
-        </span>
-        <span style={{ fontSize: 12, color: THEME.muted }}>Atualizado agora</span>
-      </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          gap: 16,
-        }}
-      >
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {chips.map((c, i) => (
         <div
+          key={i}
           style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 10,
-            paddingRight: 14,
-            borderRight: `1px solid ${THEME.stroke}`,
-          }}
-        >
-          <span style={{ fontSize: 13, color: THEME.muted }}>Treinos no mês</span>
-          <strong style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1 }}>0</strong>
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <span style={{ fontSize: 13, color: THEME.muted }}>Treinos no total</span>
-          <span style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <strong style={{ fontSize: 36, fontWeight: 800, letterSpacing: '-0.01em', lineHeight: 1 }}>0</strong>
-            <span style={{ fontSize: 12, color: THEME.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>em progresso</span>
-          </span>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function MethodsCard({ onOpen }) {
-  return (
-    <button
-      type="button"
-      onClick={onOpen}
-      style={{
-        ...CARD_BASE_STYLE,
-        padding: '20px 22px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        gap: 16,
-        textAlign: 'left',
-        color: THEME.text,
-        cursor: 'pointer',
-        background: THEME.card,
-      }}
-    >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <span style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em' }}>Explicação dos métodos</span>
-        <span style={{ fontSize: 13, color: THEME.muted }}>Toque para ver mais</span>
-      </div>
-      <div
-        aria-hidden
-        style={{
-          width: 36,
-          height: 36,
-          borderRadius: '50%',
-          display: 'grid',
-          placeItems: 'center',
-          border: `1px solid ${THEME.stroke}`,
-          background: 'rgba(255,255,255,0.04)',
-          color: THEME.text,
-        }}
-      >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-          <path d="M9 6l6 6-6 6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
-    </button>
-  );
-}
-
-function DailyNoteCard({ onOpen }) {
-  return (
-    <section
-      style={{
-        ...CARD_BASE_STYLE,
-        padding: '20px 22px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 14,
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <span style={{ fontSize: 12, color: THEME.muted, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            Recado do dia
-          </span>
-          <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>Foco e consistência</span>
-        </div>
-        <button
-          type="button"
-          onClick={onOpen}
-          style={{
-            background: '#242424',
+            padding: '8px 10px',
+            borderRadius: 999,
             border: `1px solid ${THEME.stroke}`,
-            color: THEME.text,
-            borderRadius: 10,
-            padding: '10px 12px',
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: '0.04em',
-            cursor: 'pointer',
+            background: '#141417',
+            color: c.ok ? THEME.green : THEME.textDim,
+            fontSize: 12,
+            boxShadow: THEME.softShadow,
           }}
         >
-          Ver recado
-        </button>
-      </div>
-      <p
-        style={{
-          margin: 0,
-          color: THEME.muted,
-          fontSize: 14,
-          lineHeight: 1.6,
-          display: '-webkit-box',
-          WebkitLineClamp: 3,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-        }}
-      >
-        Pedro deixa um recado diário para manter você focado. Abra para ler o texto completo e alinhar suas metas de hoje.
-      </p>
-    </section>
+          {c.ok ? '✓ ' : '• '}{c.label}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function BottomTabs({ active = 'inicio', onNavigate }) {
+  const items = [
+    { key: 'inicio', href: '/inicio', lines: ['Início'] },
+    { key: 'mobilidades', href: '/mobilidades', lines: ['Mobilidades e', 'Alongamentos'] },
+    { key: 'treino', href: '/treino', lines: ['Plano de', 'Treino'] },
+    { key: 'alimentar', href: '/alimentar', lines: ['Plano', 'Alimentar'] },
+    { key: 'evolucao', href: '/evolucao', lines: ['Sua', 'Evolução'] },
+  ];
+
+  const Icon = ({ name, active }) => {
+    const stroke = active ? '#FFFFFF' : THEME.textMute;
+    const fill = active ? THEME.red : 'none';
+    const s = 28; // tamanho maior
+
+    switch (name) {
+      case 'inicio':
+        return (
+          <svg width={s} height={s} viewBox="0 0 24 24">
+            <path d="M3 10.5L12 3l9 7.5" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <path d="M5 10.5V20h14v-9.5" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        );
+      case 'mobilidades':
+        return (
+          <svg width={s} height={s} viewBox="0 0 24 24">
+            <circle cx="12" cy="5" r="2.5" fill={stroke}/>
+            <path d="M12 7.5v5" stroke={stroke} strokeWidth="2" strokeLinecap="round"/>
+            <path d="M9 13c1.5-1 4.5-1 6 0" stroke={stroke} strokeWidth="2" strokeLinecap="round"/>
+            <path d="M10 14l-3 5M14 14l3 5" stroke={stroke} strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+        );
+      case 'treino':
+        return (
+          <svg width={s} height={s} viewBox="0 0 24 24">
+            <rect x="2" y="9" width="3" height="6" rx="1" fill={stroke}/>
+            <rect x="19" y="9" width="3" height="6" rx="1" fill={stroke}/>
+            <rect x="7" y="11" width="10" height="2" rx="1" fill={stroke}/>
+            <rect x="10.5" y="7" width="3" height="10" rx="1.2" fill={fill} opacity={active ? 0.25 : 0}/>
+          </svg>
+        );
+      case 'alimentar':
+        return (
+          <svg width={s} height={s} viewBox="0 0 24 24">
+            <path d="M12 4c-3 2.5-5 5.5-5 9 0 3.5 2.5 6 5 6s5-2.5 5-6c0-3.5-2-6.5-5-9z" fill="none" stroke={stroke} strokeWidth="2"/>
+          </svg>
+        );
+      case 'evolucao':
+        return (
+          <svg width={s} height={s} viewBox="0 0 24 24">
+            <path d="M4 18V6M4 18h16" stroke={stroke} strokeWidth="2" strokeLinecap="round"/>
+            <path d="M7 14l3-3 3 2 4-5" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            <circle cx="17" cy="8" r="1.5" fill={stroke}/>
+          </svg>
+        );
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <nav
+      style={{
+        position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900,
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0))',
+        backdropFilter: 'blur(6px)',
+        borderTop: `1px solid ${THEME.strokeSoft}`,
+        display: 'flex', justifyContent: 'space-around',
+        padding: '10px 8px calc(env(safe-area-inset-bottom) + 10px)',
+      }}
+    >
+      {items.map((it) => {
+        const isActive = it.key === active;
+        return (
+          <button
+            key={it.key}
+            onClick={() => onNavigate(it.href)}
+            style={{
+              background: 'transparent', border: 'none',
+              color: isActive ? THEME.text : THEME.textMute,
+              opacity: isActive ? 1 : 0.85,
+              display: 'flex', flexDirection: 'column', alignItems: 'center',
+              gap: 6, padding: 6, minWidth: 70, cursor: 'pointer',
+              borderBottom: isActive ? `2px solid ${THEME.red}` : '2px solid transparent',
+              boxShadow: isActive ? '0 6px 16px rgba(193,18,31,0.25)' : 'none',
+              borderRadius: 8,
+              transition: 'all .18s ease',
+            }}
+          >
+            <Icon name={it.key} active={isActive} />
+            <span style={{ fontSize: 11, lineHeight: 1.15, textAlign: 'center', fontWeight: isActive ? 700 : 500 }}>
+              {it.lines.map((l, i) => (
+                <span key={i} style={{ display: 'block' }}>{l}</span>
+              ))}
+            </span>
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 
 export default function InicioPage() {
   const router = useRouter();
-  const [openMenu, setOpenMenu] = useState(false);
+  const username = 'aluno';
   const [showMethods, setShowMethods] = useState(false);
   const [showDaily, setShowDaily] = useState(false);
-  const pathname = usePathname();
+  const [openAccount, setOpenAccount] = useState(false);
+  const go = (href) => router.push(href);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      if (!data?.session) {
-        router.replace('/');
-      }
-    });
-  }, [router]);
-
-  useEffect(() => {
-    const nav = document.querySelector('.tabs');
-    if (!nav) return;
-    nav.style.position = 'fixed';
-    nav.style.left = '0';
-    nav.style.right = '0';
-    nav.style.bottom = '0';
-    nav.style.zIndex = '40';
-    nav.style.background = '#111';
-    nav.style.padding = '10px 18px 18px';
-    const buttons = nav.querySelectorAll('.tab');
-    buttons.forEach((button, index) => {
-      const path = BOTTOM_TAB_PATHS[index];
-      button.style.opacity = path === pathname ? '1' : '0.68';
-      button.style.borderBottom = path === pathname ? `2px solid ${THEME.red}` : '2px solid transparent';
-      button.style.paddingBottom = '8px';
-      button.style.transition = 'opacity 0.2s ease';
-    });
-  }, [pathname]);
+  // Exemplo de progresso mensal (mock)
+  const monthlyDone = 12;
+  const monthlyGoal = 20;
+  const pct = Math.min(100, Math.round((monthlyDone / monthlyGoal) * 100));
 
   return (
     <div
       style={{
-        minHeight: '100vh',
-        background: THEME.bg,
+        minHeight: '100dvh',
         color: THEME.text,
-        paddingBottom: 120,
+        position: 'relative',
+        paddingBottom: 96, // espaço para a barra
+        overflow: 'hidden',
+        background: `
+          linear-gradient(180deg, ${THEME.bgGradTop}, ${THEME.bgGradMid} 20%, ${THEME.bgGradBot}),
+          repeating-linear-gradient(-45deg, ${THEME.techLine} 0px, ${THEME.techLine} 1px, transparent 1px, transparent 10px),
+          repeating-linear-gradient(-45deg, ${THEME.techLine2} 0px, ${THEME.techLine2} 1px, transparent 1px, transparent 22px),
+          ${THEME.bg}
+        `,
+        backgroundBlendMode: 'screen, normal, normal, normal',
       }}
     >
-      <style>{`
-        .modal-backdrop {
-          background: rgba(0,0,0,0.6) !important;
-          backdrop-filter: blur(3px) !important;
-          z-index: 9999 !important;
-        }
-        .modal {
-          background: ${THEME.card} !important;
-          border: 1px solid ${THEME.stroke} !important;
-          border-radius: 16px !important;
-          box-shadow: ${THEME.shadow} !important;
-          padding: 18px !important;
-          color: ${THEME.text} !important;
-        }
-        .modal .title {
-          color: ${THEME.text} !important;
-          font-weight: 700 !important;
-        }
-      `}</style>
-      <Header onAvatarClick={() => setOpenMenu(true)} />
-
-      <main
+      {/* Header */}
+      <header
         style={{
-          padding: '24px 18px 40px',
-          display: 'grid',
-          gap: 20,
-          maxWidth: 430,
-          margin: '0 auto',
+          position: 'sticky', top: 0, zIndex: 800,
+          padding: '16px 18px 12px',
+          borderBottom: `1px solid ${THEME.strokeSoft}`,
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0))',
+          backdropFilter: 'blur(2px)',
         }}
       >
-        <CalendarCard onStart={() => router.push('/treino')} />
-        <SummaryCard />
-        <MethodsCard onOpen={() => setShowMethods(true)} />
-        <DailyNoteCard onOpen={() => setShowDaily(true)} />
-        <section
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: .5, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: THEME.red, boxShadow: '0 0 0 2px rgba(193,18,31,0.25)' }} />
+              PR TEAM
+            </div>
+            <div style={{ fontSize: 12, color: THEME.textMute, marginTop: 2 }}>Painel do aluno</div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ fontSize: 13, color: THEME.textDim }}>Olá, <strong>{username}</strong>!</div>
+            <button
+              aria-label="Conta" onClick={() => setOpenAccount(true)}
+              style={{
+                width: 44, height: 44, borderRadius: 12,
+                border: `1px solid ${THEME.stroke}`,
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
+              }}
+            >👤</button>
+          </div>
+        </div>
+      </header>
+
+      {/* Conteúdo */}
+      <main style={{ padding: '16px 16px 10px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 16 }}>
+     {/* Recado do dia (motivacional) */}
+<section
+  style={{
+    background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
+    border: `1px solid ${THEME.stroke}`,
+    borderRadius: 16,
+    boxShadow: THEME.softShadow,
+    padding: 16,
+    display: 'grid',
+    gap: 10,
+  }}
+>
+  <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 4 }}>Recado do dia!</div>
+  <p style={{ margin: 0, color: THEME.text, fontSize: 15, lineHeight: 1.5, fontWeight: 600 }}>
+    A constância é o que separa os que tentam dos que conquistam. Vamos com tudo hoje! 💪
+  </p>
+</section>
+
+        {/* Semana + Próximo treino */}
+<section
+  style={{
+    background: THEME.surface,
+    border: `1px solid ${THEME.stroke}`,
+    borderRadius: 18,
+    boxShadow: THEME.shadow,
+    padding: 16,
+    display: 'grid',
+    gap: 12,
+  }}
+>
+  {/* Título */}
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+    <div style={{ fontSize: 17, fontWeight: 900 }}>Sua semana</div>
+    <div style={{ fontSize: 12, color: THEME.textMute }}>treinos planejados</div>
+  </div>
+
+  {/* Calendário */}
+  <WeekStrip />
+
+  {/* Próximo treino dentro do mesmo card */}
+  <div
+    style={{
+      marginTop: 12,
+      paddingTop: 12,
+      borderTop: `1px dashed ${THEME.strokeSoft}`,
+      display: 'grid',
+      gap: 8,
+    }}
+  >
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ fontSize: 17, fontWeight: 900 }}>Próximo treino</div>
+      <span style={{ fontSize: 12, color: THEME.textMute }}>~ 55 min</span>
+    </div>
+
+    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {['Peito', 'Tríceps', 'Core', '8 exercícios'].map((t) => (
+        <span
+          key={t}
           style={{
-            ...CARD_BASE_STYLE,
-            padding: '20px 22px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 16,
+            padding: '8px 10px',
+            borderRadius: 999,
+            border: `1px solid ${THEME.stroke}`,
+            background: '#141417',
+            color: THEME.textDim,
+            fontSize: 12,
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.01em' }}>Planejamento da semana</span>
-            <span style={{ fontSize: 12, color: THEME.muted, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-              Organize seu foco diário
-            </span>
+          {t}
+        </span>
+      ))}
+    </div>
+
+    <button
+      onClick={() => go('/treino')}
+      style={{
+        marginTop: 4,
+        background: `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`,
+        border: 'none',
+        color: THEME.text,
+        fontWeight: 900,
+        borderRadius: 12,
+        padding: '12px 18px',
+        boxShadow: THEME.softShadow,
+        cursor: 'pointer',
+      }}
+    >
+      Começar agora
+    </button>
+  </div>
+</section>
+
+        {/* Desafios PR TEAM */}
+<section
+  style={{
+    background: THEME.surface,
+    border: `1px solid ${THEME.stroke}`,
+    borderRadius: 18,
+    boxShadow: THEME.shadow,
+    padding: 14,
+    display: 'grid',
+    gap: 10,
+  }}
+>
+  <div style={{ display: 'flex', flexDirection: 'column' }}>
+    <div style={{ fontSize: 16, fontWeight: 900 }}>Desafios PR TEAM</div>
+    <div style={{ fontSize: 12, color: THEME.textMute }}>semanal</div>
+  </div>
+
+  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+    {[
+      { label: '5 treinos', ok: true },
+      { label: '25 litros de água', ok: false },
+      { label: '90min cárdio', ok: true },
+    ].map((c, i) => (
+      <div
+        key={i}
+        style={{
+          padding: '8px 10px',
+          borderRadius: 999,
+          border: `1px solid ${THEME.stroke}`,
+          background: '#141417',
+          color: c.ok ? THEME.green : THEME.textDim,
+          fontSize: 12,
+          boxShadow: THEME.softShadow,
+        }}
+      >
+        {c.ok ? '✓ ' : '• '}{c.label}
+      </div>
+    ))}
+  </div>
+</section>
+
+        {/* Resumo + Progresso mensal (ocupa mais espaço) */}
+        <section
+          style={{
+            background: THEME.surface, border: `1px solid ${THEME.stroke}`,
+            borderRadius: 18, boxShadow: THEME.shadow, padding: 16,
+            display: 'grid', gap: 14,
+          }}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', alignItems: 'center', gap: 12 }}>
+            <div style={{ paddingRight: 12, borderRight: `1px solid ${THEME.strokeSoft}` }}>
+              <div style={{ fontSize: 12, color: THEME.textMute, marginBottom: 6 }}>Treinos no mês</div>
+              <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1 }}>{monthlyDone}</div>
+            </div>
+            <div style={{ paddingLeft: 12 }}>
+              <div style={{ fontSize: 12, color: THEME.textMute, marginBottom: 6 }}>Treinos no total</div>
+              <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1 }}>87</div>
+            </div>
           </div>
-          <WeekStrip />
+
+          {/* Barra de progresso mensal */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 12, color: THEME.textMute }}>Meta mensal</span>
+              <span style={{ fontSize: 12, color: THEME.textDim }}>{pct}% ({monthlyDone}/{monthlyGoal})</span>
+            </div>
+            <div style={{
+              height: 10, borderRadius: 999, background: '#1A1A1D',
+              border: `1px solid ${THEME.strokeSoft}`, overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${pct}%`, height: '100%',
+                background: `linear-gradient(90deg, ${THEME.red}, ${THEME.red2})`,
+              }} />
+            </div>
+          </div>
         </section>
+
+        {/* Explicação dos métodos (refinado) */}
+<section
+  onClick={() => setShowMethods(true)}
+  style={{
+    background: THEME.surface,
+    border: `1px solid ${THEME.stroke}`,
+    borderRadius: 18,
+    boxShadow: THEME.shadow,
+    padding: 22,
+    cursor: 'pointer',
+    display: 'grid',
+    gap: 12,
+  }}
+>
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+    <div>
+      <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 6 }}>Explicação dos métodos</div>
+      <div style={{ fontSize: 14, color: THEME.red, fontWeight: 700 }}>Toque para ver mais</div>
+    </div>
+    <div
+      aria-hidden
+      style={{
+        width: 34, height: 34, borderRadius: 8,
+        border: `1px solid ${THEME.strokeSoft}`,
+        display: 'grid', placeItems: 'center',
+        color: THEME.textDim, fontSize: 16,
+      }}
+    >›</div>
+  </div>
+</section>
+
+        {/* Plano alimentar em destaque (refinado) */}
+<section
+  style={{
+    background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
+    border: `1px solid ${THEME.stroke}`,
+    borderRadius: 18,
+    padding: 22,
+    color: THEME.text,
+    boxShadow: THEME.softShadow,
+  }}
+>
+  <div style={{ fontSize: 18, fontWeight: 900, marginBottom: 8 }}>
+    Plano alimentar em destaque
+  </div>
+  <div style={{ fontSize: 14, color: THEME.textMute, lineHeight: 1.6 }}>
+    Revise suas metas de macros para hoje.
+  </div>
+</section>
       </main>
 
-      <BottomTabs />
+      {/* Modais */}
+      <Modal open={showMethods} onClose={() => setShowMethods(false)} title="Explicação dos métodos">
+        <div style={{ display: 'grid', gap: 10, color: THEME.textDim, fontSize: 14 }}>
+          <div><strong style={{ color: THEME.text }}>Progressão de carga:</strong> descrição aqui…</div>
+          <div><strong style={{ color: THEME.text }}>Drop set:</strong> descrição aqui…</div>
+          <div><strong style={{ color: THEME.text }}>Cluster set:</strong> descrição aqui…</div>
+          <div><strong style={{ color: THEME.text }}>Pico de contração:</strong> descrição aqui…</div>
+          <div><strong style={{ color: THEME.text }}>Back off-set:</strong> descrição aqui…</div>
+          <div><strong style={{ color: THEME.text }}>FST-7:</strong> descrição aqui…</div>
+        </div>
+      </Modal>
 
-      <Modal
-        open={openMenu}
-        onClose={() => setOpenMenu(false)}
-        align="top"
-        title="Conta"
-      >
-        <div style={MODAL_CONTENT_STYLE}>
-          <p style={{ margin: 0, fontSize: 14, color: THEME.muted }}>Status: ativo ✅</p>
+      <Modal open={showDaily} onClose={() => setShowDaily(false)} title="Recado do dia">
+        <p style={{ margin: 0, color: THEME.textDim, lineHeight: 1.55 }}>
+          Faça alongamentos e mobilidades como pré-treino. 30 minutos de cardio moderado.
+          5 séries de vacum em jejum. Execução perfeita e controle de carga — disciplina e constância.
+        </p>
+      </Modal>
+
+      <Modal open={openAccount} onClose={() => setOpenAccount(false)} title="Conta" align="top">
+        <div style={{ display: 'grid', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 46, height: 46, borderRadius: 10, background: '#17171A', border: `1px solid ${THEME.stroke}`, display: 'grid', placeItems: 'center' }}>👤</div>
+            <div>
+              <div style={{ fontWeight: 900 }}>{username}</div>
+              <div style={{ fontSize: 12, color: THEME.textMute }}>Conta ativa</div>
+            </div>
+          </div>
           <button
-            type="button"
-            onClick={() => {
-              setOpenMenu(false);
-              supabase.auth.signOut().finally(() => router.replace('/'));
-            }}
+            onClick={() => router.push('/')}
             style={{
-              ...CTA_BUTTON_STYLE,
-              width: '100%',
+              background: '#1A1A1D', border: `1px solid ${THEME.stroke}`, color: THEME.text,
+              borderRadius: 12, padding: '12px 14px', cursor: 'pointer', textAlign: 'center',
             }}
-          >
-            Sair da conta
-          </button>
+          >Sair</button>
         </div>
       </Modal>
 
-      <Modal
-        open={showMethods}
-        onClose={() => setShowMethods(false)}
-        title="Explicação dos métodos"
-      >
-        <div style={MODAL_CONTENT_STYLE}>
-          <p style={{ margin: 0, fontSize: 14, color: THEME.muted, lineHeight: 1.6 }}>
-            Conteúdo em desenvolvimento: Progressão de carga, Drop set, Cluster set, Pico de contração, Back-off set e FST-7.
-          </p>
-        </div>
-      </Modal>
-
-      <Modal open={showDaily} onClose={() => setShowDaily(false)} title="Recado do dia!">
-        <div style={MODAL_CONTENT_STYLE}>
-          <p style={{ margin: 0, fontSize: 14, color: THEME.muted, lineHeight: 1.6 }}>
-            Foque na execução perfeita, respiração e controle. Qualidade &gt; quantidade. Beba água, durma bem e apareça para si mesmo hoje. Vamos pra cima! 💪
-          </p>
-        </div>
-      </Modal>
+      <BottomTabs active="inicio" onNavigate={go} />
     </div>
   );
 }
