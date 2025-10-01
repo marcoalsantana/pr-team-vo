@@ -119,7 +119,36 @@ export default function TreinoPage() {
 
       {/* 👇 ESPAÇAMENTO TOTAL CONTROLADO AQUI: cada Card tem marginBottom: 22 */}
       <main style={{ maxWidth: 520, margin: '0 auto' }}>
-        {/* Card 1 — Sua semana */}
+        {/* Card 1 — Pré-treino essencial (FOI PARA O TOPO) */}
+        <Card
+          style={{
+            background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
+            border: `1px solid ${THEME.stroke}`,
+          }}
+        >
+          <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 6 }}>
+            ⚡️ Não esqueça a mobilidade e alongamento
+          </div>
+          <div style={{ fontSize: 13, color: THEME.textMute, marginBottom: 12 }}>
+            Leva 5–8 min e melhora MUITO sua performance.
+          </div>
+          <button
+            onClick={() => go('/mobilidades')}
+            style={{
+              background: 'transparent',
+              border: `1px solid ${THEME.stroke}`,
+              color: THEME.text,
+              borderRadius: 12,
+              padding: '10px 14px',
+              cursor: 'pointer',
+              fontWeight: 700,
+            }}
+          >
+            Ir para Mobilidades
+          </button>
+        </Card>
+
+        {/* Card 2 — Sua semana */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
             <div style={{ fontSize: 17, fontWeight: 900 }}>Sua semana</div>
@@ -128,7 +157,7 @@ export default function TreinoPage() {
           <WeekDots />
         </Card>
 
-        {/* Card 2 — Treino do dia */}
+        {/* Card 3 — Treino do dia */}
         <Card>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <div style={{ fontSize: 17, fontWeight: 900 }}>Treino do dia</div>
@@ -185,7 +214,7 @@ export default function TreinoPage() {
           </button>
         </Card>
 
-        {/* Card 3 — Programa de treino */}
+        {/* Card 4 — Programa de treino */}
         <Card>
           <div style={{ fontSize: 17, fontWeight: 900, marginBottom: 12 }}>Programa de treino</div>
           <div style={{ display: 'grid', gap: 10 }}>
@@ -223,38 +252,9 @@ export default function TreinoPage() {
           </div>
         </Card>
 
-        {/* Card 4 — Pré-treino essencial */}
-        <Card
-          style={{
-            background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
-            border: `1px solid ${THEME.stroke}`,
-          }}
-        >
-          <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 6 }}>
-            ⚡️ Não esqueça a mobilidade e alongamento
-          </div>
-          <div style={{ fontSize: 13, color: THEME.textMute, marginBottom: 12 }}>
-            Leva 5–8 min e melhora MUITO sua performance.
-          </div>
-          <button
-            onClick={() => go('/mobilidades')}
-            style={{
-              background: 'transparent',
-              border: `1px solid ${THEME.stroke}`,
-              color: THEME.text,
-              borderRadius: 12,
-              padding: '10px 14px',
-              cursor: 'pointer',
-              fontWeight: 700,
-            }}
-          >
-            Ir para Mobilidades
-          </button>
-        </Card>
-
-        {/* Card 5 — Streak semanal */}
+        {/* Card 5 — Sequência de Treino! (renomeado) */}
         <Card>
-          <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 12 }}>Streak semanal</div>
+          <div style={{ fontSize: 16, fontWeight: 900, marginBottom: 12 }}>Sequência de Treino!</div>
           <div style={{ display: 'flex', gap: 8 }}>
             {[...Array(7)].map((_, i) => (
               <div

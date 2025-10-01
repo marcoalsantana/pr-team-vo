@@ -228,7 +228,6 @@ export default function PlanoTreinoPage() {
               <span style={{ width: 10, height: 10, borderRadius: 2, background: THEME.red, boxShadow: '0 0 0 2px rgba(193,18,31,0.25)' }} />
               Plano de Treino
             </div>
-            {/* subtítulo removido conforme pedido */}
           </div>
           <button
             aria-label="Voltar ao início"
@@ -246,7 +245,37 @@ export default function PlanoTreinoPage() {
       {/* Conteúdo */}
       <main style={{ padding: '16px 16px 10px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 40 }}>
 
-        {/* Sua semana (dias + check) */}
+        {/* 1) Pré-treino essencial (subiu para o topo) */}
+        <section
+          style={{
+            background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
+            border: `1px solid ${THEME.stroke}`,
+            borderRadius: 16,
+            padding: '14px 16px',
+            color: THEME.text,
+            boxShadow: THEME.softShadow,
+          }}
+        >
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <div style={{ fontSize: 20, fontWeight: 900 }}>Pré-treino essencial</div>
+            <span style={{
+              fontSize:10, color:THEME.textDim, border:`1px solid ${THEME.stroke}`, padding:'4px 8px',
+              borderRadius:999, background:'#1a1a1d'
+            }}>2–5 min</span>
+          </div>
+          <div style={{ fontSize: 12, color: THEME.textMute, marginBottom:10 }}>
+            ⚡️Não esqueça de fazer sua mobilidade e alongamento de pré-treino!
+          </div>
+          <button
+            onClick={() => go('/mobilidades')}
+            style={{
+              background: 'transparent', border: `1px solid ${THEME.stroke}`,
+              color: THEME.text, borderRadius: 12, padding: '12px 14px', cursor: 'pointer', fontWeight:700, width:'100%'
+            }}
+          >Ir para mobilidades</button>
+        </section>
+
+        {/* 2) Sua semana */}
         <section
           style={{
             background: THEME.surface,
@@ -262,12 +291,11 @@ export default function PlanoTreinoPage() {
             <div style={{ fontSize: 17, fontWeight: 900 }}>Sua semana</div>
             <div style={{ fontSize: 12, color: THEME.textMute }}>D S T Q Q S S</div>
           </div>
-
           {/* indique dias concluídos no Set (0=Dom .. 6=Sab) */}
           <WeekDots doneSet={new Set([1,4])} />
         </section>
 
-        {/* Treino do dia */}
+        {/* 3) Treino do dia */}
         <section
           style={{
             background: THEME.surface,
@@ -316,7 +344,7 @@ export default function PlanoTreinoPage() {
           </div>
         </section>
 
-        {/* Programa de treino (validade + progresso) */}
+        {/* 4) Programa de treino */}
         <section
           style={{
             background: THEME.surface,
@@ -372,7 +400,7 @@ export default function PlanoTreinoPage() {
           </div>
         </section>
 
-        {/* Streak semanal */}
+        {/* 5) Sequência de Treino! (renomeado) */}
         <section
           style={{
             background: THEME.surface,
@@ -385,7 +413,7 @@ export default function PlanoTreinoPage() {
           }}
         >
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div style={{ fontSize: 16, fontWeight: 900 }}>Streak semanal</div>
+            <div style={{ fontSize: 16, fontWeight: 900 }}>Sequência de Treino!</div>
             <span style={{ fontSize:12, color:THEME.textMute }}>mantido com treino diário</span>
           </div>
           <div style={{
@@ -402,37 +430,6 @@ export default function PlanoTreinoPage() {
               <div style={{ fontSize:12, color:THEME.textMute }}>rumo à consistência máxima</div>
             </div>
           </div>
-        </section>
-
-        {/* Lembrete mobilidade (repaginado) */}
-        <section
-          style={{
-            background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
-            border: `1px solid ${THEME.stroke}`,
-            borderRadius: 16,
-            padding: '14px 16px',
-            color: THEME.text,
-            boxShadow: THEME.softShadow,
-            marginBottom: 10,
-          }}
-        >
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-            <div style={{ fontSize: 14, fontWeight: 900 }}>Pré-treino essencial</div>
-            <span style={{
-              fontSize:10, color:THEME.textDim, border:`1px solid ${THEME.stroke}`, padding:'4px 8px',
-              borderRadius:999, background:'#1a1a1d'
-            }}>2–5 min</span>
-          </div>
-          <div style={{ fontSize: 12, color: THEME.textMute, marginBottom:10 }}>
-            ⚡️Não esqueça de fazer sua mobilidade e alongamento de pré-treino!
-          </div>
-          <button
-            onClick={() => go('/mobilidades')}
-            style={{
-              background: 'transparent', border: `1px solid ${THEME.stroke}`,
-              color: THEME.text, borderRadius: 12, padding: '12px 14px', cursor: 'pointer', fontWeight:700, width:'100%'
-            }}
-          >Ir para mobilidades</button>
         </section>
       </main>
 
