@@ -1,11 +1,19 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-/* ====== TEMA (mesmo clima da /inicio) ====== */
+/* ----------------------- THEME ----------------------- */
 const THEME = {
   bg: '#0E0E10',
+
+  // mesmos layers da /inicio
+  bgGradTop: 'rgba(193,18,31,0.08)',
+  bgGradMid: 'rgba(255,255,255,0.02)',
+  bgGradBot: 'rgba(0,0,0,0)',
+  techLine: 'rgba(255,255,255,0.05)',
+  techLine2: 'rgba(193,18,31,0.08)',
+
   surface: '#121214',
   stroke: 'rgba(255,255,255,0.08)',
   strokeSoft: 'rgba(255,255,255,0.06)',
@@ -19,73 +27,53 @@ const THEME = {
   softShadow: '0 8px 18px rgba(0,0,0,0.22)',
 };
 
-/* ====== BARRA INFERIOR (igual à /inicio, com ícones silhouette) ====== */
+/* ----------------------- BASE ----------------------- */
+function Modal({ open, onClose, title, children, align = 'center', maxWidth = 420 }) {
+  if (!open) return null;
+  const alignStyle = align === 'top' ? { alignItems: 'flex-start', paddingTop: 20 } : { alignItems: 'center' };
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 1000,
+        display: 'flex', justifyContent: 'center', ...alignStyle,
+        background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '94%', maxWidth, background: THEME.surface,
+          border: `1px solid ${THEME.stroke}`, borderRadius: 16,
+          boxShadow: THEME.shadow, color: THEME.text, padding: 16,
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>{title}</div>
+          <button
+            aria-label="Fechar" onClick={onClose}
+            style={{ background: 'transparent', border: 'none', color: THEME.textDim, fontSize: 20, cursor: 'pointer' }}
+          >×</button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function BottomTabs({ active = 'treino', onNavigate }) {
   const items = [
-    { key: 'inicio', href: '/inicio', lines: ['Início'] },
-    { key: 'mobilidades', href: '/mobilidades', lines: ['Mobilidades e', 'Alongamentos'] },
-    { key: 'treino', href: '/treino', lines: ['Plano de', 'Treino'] },
-    { key: 'alimentar', href: '/alimentar', lines: ['Plano', 'Alimentar'] },
-    { key: 'evolucao', href: '/evolucao', lines: ['Sua', 'Evolução'] },
+    { key: 'inicio', labelTop: 'Início', labelBottom: '', icon: '🏠', href: '/inicio' },
+    { key: 'mobilidades', labelTop: 'Mobilidades e', labelBottom: 'Alongamentos', icon: '🤸', href: '/mobilidades' },
+    { key: 'treino', labelTop: 'Plano de', labelBottom: 'Treino', icon: '🏋️', href: '/treino' },
+    { key: 'alimentar', labelTop: 'Plano', labelBottom: 'Alimentar', icon: '🥗', href: '/alimentar' },
+    { key: 'evolucao', labelTop: 'Sua', labelBottom: 'Evolução', icon: '📈', href: '/evolucao' },
   ];
-
-  const Icon = ({ name, active }) => {
-    const stroke = active ? '#FFFFFF' : THEME.textMute;
-    const fill = active ? THEME.red : 'none';
-    const s = 28;
-
-    switch (name) {
-      case 'inicio':
-        return (
-          <svg width={s} height={s} viewBox="0 0 24 24">
-            <path d="M3 10.5L12 3l9 7.5" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M5 10.5V20h14v-9.5" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        );
-      case 'mobilidades':
-        return (
-          <svg width={s} height={s} viewBox="0 0 24 24">
-            <circle cx="12" cy="5" r="2.5" fill={stroke}/>
-            <path d="M12 7.5v5" stroke={stroke} strokeWidth="2" strokeLinecap="round"/>
-            <path d="M9 13c1.5-1 4.5-1 6 0" stroke={stroke} strokeWidth="2" strokeLinecap="round"/>
-            <path d="M10 14l-3 5M14 14l3 5" stroke={stroke} strokeWidth="2" strokeLinecap="round"/>
-          </svg>
-        );
-      case 'treino':
-        return (
-          <svg width={s} height={s} viewBox="0 0 24 24">
-            <rect x="2" y="9" width="3" height="6" rx="1" fill={stroke}/>
-            <rect x="19" y="9" width="3" height="6" rx="1" fill={stroke}/>
-            <rect x="7" y="11" width="10" height="2" rx="1" fill={stroke}/>
-            <rect x="10.5" y="7" width="3" height="10" rx="1.2" fill={fill} opacity={active ? 0.25 : 0}/>
-          </svg>
-        );
-      case 'alimentar':
-        return (
-          <svg width={s} height={s} viewBox="0 0 24 24">
-            <path d="M12 4c-3 2.5-5 5.5-5 9 0 3.5 2.5 6 5 6s5-2.5 5-6c0-3.5-2-6.5-5-9z" fill="none" stroke={stroke} strokeWidth="2"/>
-          </svg>
-        );
-      case 'evolucao':
-        return (
-          <svg width={s} height={s} viewBox="0 0 24 24">
-            <path d="M4 18V6M4 18h16" stroke={stroke} strokeWidth="2" strokeLinecap="round"/>
-            <path d="M7 14l3-3 3 2 4-5" fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="17" cy="8" r="1.5" fill={stroke}/>
-          </svg>
-        );
-      default:
-        return null;
-    }
-  };
-
   return (
     <nav
       style={{
         position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900,
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0))',
-        backdropFilter: 'blur(6px)',
-        borderTop: `1px solid ${THEME.strokeSoft}`,
+        background: '#101012', borderTop: `1px solid ${THEME.strokeSoft}`,
         display: 'flex', justifyContent: 'space-around',
         padding: '10px 8px calc(env(safe-area-inset-bottom) + 10px)',
       }}
@@ -98,20 +86,16 @@ function BottomTabs({ active = 'treino', onNavigate }) {
             onClick={() => onNavigate(it.href)}
             style={{
               background: 'transparent', border: 'none',
-              color: isActive ? THEME.text : THEME.textMute,
-              opacity: isActive ? 1 : 0.85,
+              color: isActive ? THEME.text : THEME.textMute, opacity: isActive ? 1 : 0.7,
               display: 'flex', flexDirection: 'column', alignItems: 'center',
-              gap: 6, padding: 6, minWidth: 70, cursor: 'pointer',
+              gap: 4, padding: 6, fontSize: 12,
               borderBottom: isActive ? `2px solid ${THEME.red}` : '2px solid transparent',
-              boxShadow: isActive ? '0 6px 16px rgba(193,18,31,0.25)' : 'none',
-              borderRadius: 8, transition: 'all .18s ease',
+              borderRadius: 6, minWidth: 64, cursor: 'pointer',
             }}
           >
-            <Icon name={it.key} active={isActive} />
-            <span style={{ fontSize: 11, lineHeight: 1.15, textAlign: 'center', fontWeight: isActive ? 700 : 500 }}>
-              {it.lines.map((l, i) => (
-                <span key={i} style={{ display: 'block' }}>{l}</span>
-              ))}
+            <span style={{ fontSize: 18, lineHeight: 1 }}>{it.icon}</span>
+            <span style={{ lineHeight: 1.1, textAlign: 'center' }}>
+              {it.labelTop}{it.labelBottom ? <><br />{it.labelBottom}</> : ''}
             </span>
           </button>
         );
@@ -120,155 +104,115 @@ function BottomTabs({ active = 'treino', onNavigate }) {
   );
 }
 
-/* ====== CARD DE EXERCÍCIO ====== */
-function ExerciseCard({ ex, onChangeWeight, onToggleDone }) {
-  const { id, name, sets, reps, weight, done, notes } = ex;
-
+/* ----------------------- SEMANA: DIAS + BOLINHA COM CHECK ----------------------- */
+function WeekDots({ today = new Date(), doneSet = new Set() }) {
+  const labels = ['D','S','T','Q','Q','S','S']; // dom..sab
+  const todayIdx = today.getDay();
   return (
-    <div
-      style={{
-        background: THEME.surface,
-        border: `1px solid ${THEME.stroke}`,
-        borderRadius: 16,
-        padding: 14,
-        display: 'grid',
-        gap: 10,
-        boxShadow: THEME.softShadow,
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <div>
-          <div style={{ fontSize: 16, fontWeight: 900 }}>{name}</div>
-          <div style={{ fontSize: 12, color: THEME.textMute }}>{sets}x{reps} reps</div>
-        </div>
-        <button
-          onClick={() => onToggleDone(id)}
-          style={{
-            background: done ? THEME.green : 'transparent',
-            color: done ? '#0a0a0a' : THEME.text,
-            border: `1px solid ${done ? THEME.green : THEME.stroke}`,
-            borderRadius: 10,
-            padding: '8px 10px',
-            cursor: 'pointer',
-            fontWeight: 800,
-          }}
-        >
-          {done ? 'Concluído ✓' : 'Concluir'}
-        </button>
-      </div>
-
-      {notes && (
-        <div style={{ fontSize: 12, color: THEME.textDim }}>
-          {notes}
-        </div>
-      )}
-
-      {/* Ajuste de peso */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'auto 1fr auto',
-          alignItems: 'center',
-          gap: 10,
-          paddingTop: 6,
-          borderTop: `1px solid ${THEME.strokeSoft}`,
-        }}
-      >
-        <span style={{ fontSize: 12, color: THEME.textMute }}>Peso</span>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
-          <button
-            onClick={() => onChangeWeight(id, Math.max(0, weight - 2.5))}
-            style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: '#19191B', color: THEME.text,
-              border: `1px solid ${THEME.stroke}`, cursor: 'pointer',
-            }}
-            aria-label="Diminuir peso"
-          >-</button>
-
-          <div
-            style={{
-              minWidth: 80, textAlign: 'center',
-              background: '#151517',
-              border: `1px solid ${THEME.stroke}`,
-              color: THEME.text,
-              borderRadius: 10,
-              padding: '8px 10px',
-              fontWeight: 800,
-            }}
-          >
-            {weight.toFixed(1)} kg
+    <div style={{ display:'flex', justifyContent:'space-between', gap:10 }}>
+      {labels.map((lbl, idx) => {
+        const isToday = idx === todayIdx;
+        const isDone = doneSet.has(idx);
+        return (
+          <div key={idx} style={{ textAlign:'center', minWidth:44 }}>
+            <div
+              style={{
+                fontSize: 12,
+                letterSpacing: 0.5,
+                color: isToday ? '#FFFFFF' : 'rgba(255,255,255,0.7)',
+                fontWeight: isToday ? 800 : 600,
+                padding: '6px 0',
+              }}
+            >
+              {lbl}
+            </div>
+            <div
+              aria-hidden
+              style={{
+                width: 16, height: 16, margin: '4px auto 0',
+                borderRadius: 999,
+                border: isDone ? 'none' : '1px solid rgba(255,255,255,0.18)',
+                background: isDone 
+                  ? 'linear-gradient(180deg,#C1121F,#E04141)'
+                  : 'transparent',
+                boxShadow: isDone ? '0 0 0 2px rgba(193,18,31,.22)' : 'none',
+                display:'grid', placeItems:'center',
+                color: '#fff', fontSize: 12, lineHeight: 1,
+              }}
+            >
+              {isDone ? '✓' : ''}
+            </div>
           </div>
-
-          <button
-            onClick={() => onChangeWeight(id, weight + 2.5)}
-            style={{
-              width: 36, height: 36, borderRadius: 10,
-              background: '#19191B', color: THEME.text,
-              border: `1px solid ${THEME.stroke}`, cursor: 'pointer',
-            }}
-            aria-label="Aumentar peso"
-          >+</button>
-        </div>
-      </div>
+        );
+      })}
     </div>
   );
 }
 
-/* ====== PÁGINA /treino ====== */
-export default function TreinoPage() {
+/* ----------------------- MODAL: TODOS OS TREINOS ----------------------- */
+function AllWorkoutsModal({ open, onClose, onSelect }) {
+  const treinos = [
+    { id: 'a', titulo: 'Treino A', desc: 'Peito / Tríceps / Core' },
+    { id: 'b', titulo: 'Treino B', desc: 'Pernas / Glúteo' },
+    { id: 'c', titulo: 'Treino C', desc: 'Costas / Bíceps' },
+    { id: 'd', titulo: 'Treino D', desc: 'Ombros / Core' },
+    { id: 'e', titulo: 'Treino E', desc: 'Full Body' },
+  ];
+
+  return (
+    <Modal open={open} onClose={onClose} title="Todos os treinos">
+      <div style={{ display:'grid', gap:10 }}>
+        {treinos.map(t => (
+          <button
+            key={t.id}
+            onClick={() => onSelect(t.id)}
+            style={{
+              textAlign:'left', width:'100%',
+              background:'#141417', border:`1px solid ${THEME.stroke}`,
+              color:THEME.text, borderRadius:12, padding:12, cursor:'pointer'
+            }}
+          >
+            <div style={{ fontWeight:900 }}>{t.titulo}</div>
+            <div style={{ fontSize:12, color:THEME.textMute }}>{t.desc}</div>
+          </button>
+        ))}
+      </div>
+    </Modal>
+  );
+}
+
+/* ----------------------- PÁGINA: PLANO DE TREINO ----------------------- */
+export default function PlanoTreinoPage() {
   const router = useRouter();
-
-  // Mock inicial dos exercícios (depois puxaremos da base)
-  const [exercises, setExercises] = useState([
-    { id: 1, name: 'Supino reto', sets: 4, reps: 12, weight: 40, done: false, notes: 'Executar com controle de descida' },
-    { id: 2, name: 'Crucifixo inclinado', sets: 3, reps: 12, weight: 12.5, done: false },
-    { id: 3, name: 'Tríceps corda', sets: 4, reps: 12, weight: 20, done: false },
-    { id: 4, name: 'Mergulho no banco', sets: 3, reps: 15, weight: 0, done: false },
-  ]);
-
-  const total = exercises.length;
-  const doneCount = useMemo(() => exercises.filter(e => e.done).length, [exercises]);
-  const pct = Math.round((doneCount / total) * 100);
-
-  const changeWeight = (id, newWeight) => {
-    setExercises(prev => prev.map(e => (e.id === id ? { ...e, weight: newWeight } : e)));
-  };
-
-  const toggleDone = (id) => {
-    setExercises(prev => prev.map(e => (e.id === id ? { ...e, done: !e.done } : e)));
-  };
-
-  const handleStart = () => {
-    // Futuro: iniciar sessão de treino (timer, etc.)
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleFinish = () => {
-    // FUTURO (Supabase): registrar treino concluído no workout_logs
-    try {
-      const todayKey = new Date().toISOString().slice(0, 10); // yyyy-mm-dd
-      const prev = JSON.parse(localStorage.getItem('workout_logs') || '{}');
-      prev[todayKey] = { finished: true, at: Date.now() };
-      localStorage.setItem('workout_logs', JSON.stringify(prev));
-    } catch (e) {}
-
-    router.push('/inicio'); // volta pra tela inicial
-  };
+  const [openAll, setOpenAll] = useState(false);
 
   const go = (href) => router.push(href);
+
+  // mocks para exibir data/validade e progresso da fase
+  const faseInicio = '30/09/24';
+  const faseFim = '13/10/24';
+  const fasePct = 45; // ajuste quando ligar com dados reais
+
+  const streakDias = 3; // mock do streak semanal
 
   return (
     <div
       style={{
         minHeight: '100dvh',
         color: THEME.text,
-        background: THEME.bg,
+        position: 'relative',
         paddingBottom: 96,
+        overflow: 'hidden',
+        background: `
+          linear-gradient(180deg, ${THEME.bgGradTop}, ${THEME.bgGradMid} 20%, ${THEME.bgGradBot}),
+          repeating-linear-gradient(-45deg, ${THEME.techLine} 0px, ${THEME.techLine} 1px, transparent 1px, transparent 10px),
+          repeating-linear-gradient(-45deg, ${THEME.techLine2} 0px, ${THEME.techLine2} 1px, transparent 1px, transparent 22px),
+          ${THEME.bg}
+        `,
+        backgroundBlendMode: 'screen, normal, normal, normal',
       }}
     >
-      {/* Header simples */}
+      {/* Header */}
       <header
         style={{
           position: 'sticky', top: 0, zIndex: 800,
@@ -279,25 +223,156 @@ export default function TreinoPage() {
         }}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: .5, display: 'flex', gap: 8, alignItems: 'center' }}>
-            <span style={{ width: 10, height: 10, borderRadius: 2, background: THEME.red, boxShadow: '0 0 0 2px rgba(193,18,31,0.25)' }} />
-            PR TEAM
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: .5, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: THEME.red, boxShadow: '0 0 0 2px rgba(193,18,31,0.25)' }} />
+              Plano de Treino
+            </div>
+            {/* subtítulo removido conforme pedido */}
           </div>
           <button
-            onClick={() => router.push('/inicio')}
+            aria-label="Voltar ao início"
+            onClick={() => go('/inicio')}
             style={{
-              background: 'transparent', border: `1px solid ${THEME.stroke}`,
-              color: THEME.textDim, borderRadius: 10, padding: '8px 10px', cursor: 'pointer',
+              width: 40, height: 40, borderRadius: 12,
+              border: `1px solid ${THEME.stroke}`,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+              color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
             }}
-          >
-            Voltar
-          </button>
+          >‹</button>
         </div>
       </header>
 
       {/* Conteúdo */}
-      <main style={{ padding: '16px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 14 }}>
-        {/* Resumo do treino */}
+      <main style={{ padding: '16px 16px 10px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 40 }}>
+
+        {/* Sua semana (dias + check) */}
+        <section
+          style={{
+            background: THEME.surface,
+            border: `1px solid ${THEME.stroke}`,
+            borderRadius: 18,
+            boxShadow: THEME.shadow,
+            padding: 16,
+            display: 'grid',
+            gap: 12,
+          }}
+        >
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+            <div style={{ fontSize: 17, fontWeight: 900 }}>Sua semana</div>
+            <div style={{ fontSize: 12, color: THEME.textMute }}>D S T Q Q S S</div>
+          </div>
+
+          {/* indique dias concluídos no Set (0=Dom .. 6=Sab) */}
+          <WeekDots doneSet={new Set([1,4])} />
+        </section>
+
+        {/* Treino do dia */}
+        <section
+          style={{
+            background: THEME.surface,
+            border: `1px solid ${THEME.stroke}`,
+            borderRadius: 18,
+            boxShadow: THEME.shadow,
+            padding: 16,
+            display: 'grid',
+            gap: 12,
+          }}
+        >
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 900 }}>Treino do dia (hoje)</div>
+              <div style={{ fontSize: 12, color: THEME.textMute, marginTop: 4 }}>Treino B — Pernas</div>
+            </div>
+            <span style={{ fontSize: 12, color: THEME.textMute }}>~ 55 min</span>
+          </div>
+
+          <div style={{ display:'flex', gap: 8, flexWrap:'wrap' }}>
+            {['Agachamento', 'Leg Press', 'Cadeira Extensora', 'Core'].map((t) => (
+              <span key={t} style={{
+                padding: '8px 10px', borderRadius: 999, border: `1px solid ${THEME.stroke}`,
+                background: '#141417', color: THEME.textDim, fontSize: 12,
+              }}>{t}</span>
+            ))}
+          </div>
+
+          <div style={{ display:'flex', gap:10 }}>
+            <button
+              onClick={() => go('/treino/b')}
+              style={{
+                background: `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`,
+                border: 'none', color: THEME.text, fontWeight: 900,
+                borderRadius: 12, padding: '12px 18px', boxShadow: THEME.softShadow, cursor: 'pointer', flex:1,
+              }}
+            >Começar agora</button>
+
+            <button
+              onClick={() => setOpenAll(true)}
+              style={{
+                background: 'transparent', border: `1px solid ${THEME.stroke}`,
+                color: THEME.text, borderRadius: 12, padding: '12px 14px', cursor: 'pointer', fontWeight: 700, flex:1,
+              }}
+            >Ver todos</button>
+          </div>
+        </section>
+
+        {/* Programa de treino (validade + progresso) */}
+        <section
+          style={{
+            background: THEME.surface,
+            border: `1px solid ${THEME.stroke}`,
+            borderRadius: 18,
+            boxShadow: THEME.shadow,
+            padding: 16,
+            display: 'grid',
+            gap: 12,
+          }}
+        >
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div style={{ fontSize: 17, fontWeight: 900 }}>Programa de treino</div>
+            <span style={{ fontSize:12, color:THEME.textMute }}>Ficha válida</span>
+          </div>
+
+          <div
+            style={{
+              display:'grid', gap:10,
+              background:'#141417', border:`1px solid ${THEME.stroke}`, borderRadius:12, padding:12
+            }}
+          >
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+              <div>
+                <div style={{ fontWeight:800 }}>Fase atual</div>
+                <div style={{ fontSize:12, color:THEME.textMute }}>
+                  {faseInicio} → {faseFim}
+                </div>
+              </div>
+              <div style={{
+                padding:'6px 10px', borderRadius:999, border:`1px solid ${THEME.stroke}`,
+                background:'#18181b', fontSize:12, color:THEME.textDim
+              }}>
+                A-B-C-D-E
+              </div>
+            </div>
+
+            <div>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+                <span style={{ fontSize: 12, color: THEME.textMute }}>Progresso da fase</span>
+                <span style={{ fontSize: 12, color: THEME.textDim }}>{fasePct}%</span>
+              </div>
+              <div style={{
+                height: 10, borderRadius: 999, background: '#1A1A1D',
+                border: `1px solid ${THEME.strokeSoft}`, overflow: 'hidden',
+              }}>
+                <div style={{
+                  width: `${fasePct}%`, height: '100%',
+                  background: `linear-gradient(90deg, ${THEME.red}, ${THEME.red2})`,
+                }} />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Streak semanal */}
         <section
           style={{
             background: THEME.surface,
@@ -309,86 +384,67 @@ export default function TreinoPage() {
             gap: 10,
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-            <div>
-              <div style={{ fontSize: 18, fontWeight: 900 }}>Ficha 1 — Peito & Tríceps</div>
-              <div style={{ fontSize: 12, color: THEME.textMute }}>Duração estimada ~ 55 min</div>
-            </div>
-            <button
-              onClick={handleStart}
-              style={{
-                background: `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`,
-                border: 'none', color: THEME.text, fontWeight: 900,
-                borderRadius: 12, padding: '10px 14px', cursor: 'pointer',
-              }}
-            >
-              Iniciar
-            </button>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div style={{ fontSize: 16, fontWeight: 900 }}>Streak semanal</div>
+            <span style={{ fontSize:12, color:THEME.textMute }}>mantido com treino diário</span>
           </div>
-
-          {/* Progresso */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, color: THEME.textMute }}>
-                Progresso do treino
-              </span>
-              <span style={{ fontSize: 12, color: THEME.textDim }}>
-                {doneCount}/{total} • {pct}%
-              </span>
-            </div>
+          <div style={{
+            display:'flex', alignItems:'center', gap:12,
+            background:'#141417', border:`1px solid ${THEME.stroke}`, borderRadius:12, padding:12
+          }}>
             <div style={{
-              height: 10, borderRadius: 999, background: '#1A1A1D',
-              border: `1px solid ${THEME.strokeSoft}`, overflow: 'hidden',
-            }}>
-              <div style={{
-                width: `${pct}%`, height: '100%',
-                background: `linear-gradient(90deg, ${THEME.red}, ${THEME.red2})`,
-              }} />
+              width:40, height:40, borderRadius:10, display:'grid', placeItems:'center',
+              background:'linear-gradient(180deg, rgba(193,18,31,.25), rgba(193,18,31,.05))',
+              border:`1px solid ${THEME.stroke}`
+            }}>🔥</div>
+            <div>
+              <div style={{ fontWeight:900, fontSize:18 }}>{streakDias} dias seguidos</div>
+              <div style={{ fontSize:12, color:THEME.textMute }}>rumo à consistência máxima</div>
             </div>
           </div>
         </section>
 
-        {/* Lista de exercícios */}
-        {exercises.map((ex) => (
-          <ExerciseCard
-            key={ex.id}
-            ex={ex}
-            onChangeWeight={changeWeight}
-            onToggleDone={toggleDone}
-          />
-        ))}
-
-        {/* Finalizar treino */}
+        {/* Lembrete mobilidade (repaginado) */}
         <section
           style={{
             background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
             border: `1px solid ${THEME.stroke}`,
             borderRadius: 16,
+            padding: '14px 16px',
+            color: THEME.text,
             boxShadow: THEME.softShadow,
-            padding: 16,
-            display: 'grid',
-            gap: 10,
-            marginBottom: 8,
+            marginBottom: 10,
           }}
         >
-          <div style={{ fontSize: 16, fontWeight: 900 }}>Tudo certo?</div>
-          <div style={{ fontSize: 13, color: THEME.textMute }}>Ao concluir, seu treino será marcado como feito hoje.</div>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+            <div style={{ fontSize: 14, fontWeight: 900 }}>Pré-treino essencial</div>
+            <span style={{
+              fontSize:10, color:THEME.textDim, border:`1px solid ${THEME.stroke}`, padding:'4px 8px',
+              borderRadius:999, background:'#1a1a1d'
+            }}>2–5 min</span>
+          </div>
+          <div style={{ fontSize: 12, color: THEME.textMute, marginBottom:10 }}>
+            ⚡️Não esqueça de fazer sua mobilidade e alongamento de pré-treino!
+          </div>
           <button
-            onClick={handleFinish}
+            onClick={() => go('/mobilidades')}
             style={{
-              background: 'transparent',
-              border: `1px solid ${THEME.stroke}`,
-              color: THEME.text,
-              borderRadius: 12,
-              padding: '12px 14px',
-              fontWeight: 800,
-              cursor: 'pointer',
+              background: 'transparent', border: `1px solid ${THEME.stroke}`,
+              color: THEME.text, borderRadius: 12, padding: '12px 14px', cursor: 'pointer', fontWeight:700, width:'100%'
             }}
-          >
-            Finalizar treino ✓
-          </button>
+          >Ir para mobilidades</button>
         </section>
       </main>
+
+      {/* Modal: ver todos os treinos */}
+      <AllWorkoutsModal
+        open={openAll}
+        onClose={() => setOpenAll(false)}
+        onSelect={(id) => {
+          setOpenAll(false);
+          router.push(`/treino/${id}`);
+        }}
+      />
 
       <BottomTabs active="treino" onNavigate={go} />
     </div>
