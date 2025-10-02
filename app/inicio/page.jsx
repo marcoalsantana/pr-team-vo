@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import AccountModal from '../../components/AccountModal';
 
 const THEME = {
   bg: '#0E0E10',
@@ -292,14 +293,17 @@ export default function InicioPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ fontSize: 13, color: THEME.textDim }}>Olá, <strong>{username}</strong>!</div>
             <button
-              aria-label="Conta" onClick={() => setOpenAccount(true)}
-              style={{
-                width: 44, height: 44, borderRadius: 12,
-                border: `1px solid ${THEME.stroke}`,
-                background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-                color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
-              }}
-            >👤</button>
+  aria-label="Conta"
+  onClick={() => setOpenAccount(true)}
+  style={{
+    width: 44, height: 44, borderRadius: 12,
+    border: `1px solid ${THEME.stroke}`,
+    background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+    color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
+  }}
+>
+  👤
+</button>
           </div>
         </div>
       </header>
@@ -875,24 +879,11 @@ export default function InicioPage() {
         </p>
       </Modal>
 
-      <Modal open={openAccount} onClose={() => setOpenAccount(false)} title="Conta" align="top">
-        <div style={{ display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 46, height: 46, borderRadius: 10, background: '#17171A', border: `1px solid ${THEME.stroke}`, display: 'grid', placeItems: 'center' }}>👤</div>
-            <div>
-              <div style={{ fontWeight: 900 }}>{username}</div>
-              <div style={{ fontSize: 12, color: THEME.textMute }}>Conta ativa</div>
-            </div>
-          </div>
-          <button
-            onClick={() => router.push('/')}
-            style={{
-              background: '#1A1A1D', border: `1px solid ${THEME.stroke}`, color: THEME.text,
-              borderRadius: 12, padding: '12px 14px', cursor: 'pointer', textAlign: 'center',
-            }}
-          >Sair</button>
-        </div>
-      </Modal>
+      <AccountModal 
+  open={openAccount} 
+  onClose={() => setOpenAccount(false)} 
+  username={username}
+/>
 
       <Modal
   open={showVacumVideo}
