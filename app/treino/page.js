@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomTabs from '../../components/BottomTabs';
+import AccountModal from '../../components/AccountModal';
 
 /* ----------------------- THEME ----------------------- */
 const THEME = {
@@ -409,43 +410,11 @@ export default function PlanoTreinoPage() {
       />
 
       {/* Modal de Conta */}
-      <Modal open={openAccount} onClose={() => setOpenAccount(false)} title="Conta" align="top">
-        <div style={{ display: 'grid', gap: 12 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div
-              style={{
-                width: 46,
-                height: 46,
-                borderRadius: 10,
-                background: '#17171A',
-                border: `1px solid ${THEME.stroke}`,
-                display: 'grid',
-                placeItems: 'center',
-              }}
-            >
-              👤
-            </div>
-            <div>
-              <div style={{ fontWeight: 900 }}>{username}</div>
-              <div style={{ fontSize: 12, color: THEME.textMute }}>Conta ativa</div>
-            </div>
-          </div>
-          <button
-            onClick={() => router.push('/')}
-            style={{
-              background: '#1A1A1D',
-              border: `1px solid ${THEME.stroke}`,
-              color: THEME.text,
-              borderRadius: 12,
-              padding: '12px 14px',
-              cursor: 'pointer',
-              textAlign: 'center',
-            }}
-          >
-            Sair
-          </button>
-        </div>
-      </Modal>
+      <AccountModal 
+  open={openAccount} 
+  onClose={() => setOpenAccount(false)} 
+  username={username}
+/>
 
       <BottomTabs />
     </div>

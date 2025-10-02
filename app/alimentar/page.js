@@ -1,8 +1,10 @@
+// app/alimentar/page.js
 'use client';
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomTabs from '../../components/BottomTabs';
+import AccountModal from '../../components/AccountModal';
 
 const THEME = {
   bg: '#0E0E10',
@@ -51,8 +53,11 @@ function Card({ title, items }) {
 
 export default function PlanoAlimentarPage() {
   const router = useRouter();
-  const username = 'aluno';
   const go = (href) => router.push(href);
+
+  // 👇 estado do modal/usuário para o ícone do topo
+  const [openAccount, setOpenAccount] = useState(false);
+  const username = 'aluno';
 
   return (
     <div
@@ -89,6 +94,7 @@ export default function PlanoAlimentarPage() {
           </div>
           <button
             aria-label="Conta"
+            onClick={() => setOpenAccount(true)}
             style={{
               width: 44, height: 44, borderRadius: 12,
               border: `1px solid ${THEME.stroke}`,
@@ -153,6 +159,13 @@ export default function PlanoAlimentarPage() {
           </ul>
         </section>
       </main>
+
+      {/* Modal de conta (logout) */}
+      <AccountModal
+        open={openAccount}
+        onClose={() => setOpenAccount(false)}
+        username={username}
+      />
 
       <BottomTabs active="alimentar" onNavigate={go} />
     </div>
