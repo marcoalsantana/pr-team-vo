@@ -8,16 +8,16 @@ import Modal from '../components/Modal';
 import { supabase } from '../lib/supabase';
 
 const quote = 'Não é sorte! É trabalho, disciplina, estratégia, constância e dedicação.';
+const WHATSAPP_NUMBER = '5531997640809'; // +55 31 99764-0809
 
 export default function LoginPage() {
   const r = useRouter();
   const [email, setEmail] = useState('');
-  const [pass, setPass] = useState('');
-  const [showReset, setShowReset] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [see, setSee] = useState(false);
+const [pass, setPass]   = useState('');
+const [showReset, setShowReset] = useState(false); // <- ADICIONE ESTA LINHA
+const [loading, setLoading] = useState(false);
+const [see, setSee] = useState(false);
 
-  // já logado? vai pra /inicio
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
       if (data?.session) {
@@ -35,10 +35,7 @@ export default function LoginPage() {
       password: pass,
     });
     setLoading(false);
-    if (error) {
-      alert(error.message);
-      return;
-    }
+    if (error) { alert(error.message); return; }
     const { data } = await supabase.auth.getSession();
     if (data?.session) {
       localStorage.setItem('loggedIn', 'true');
@@ -46,23 +43,16 @@ export default function LoginPage() {
     }
   }
 
-  async function onReset(e) {
-    e.preventDefault();
-    if (!email) {
-      alert('Digite seu e-mail.');
-      return;
-    }
-    const redirectTo = `${window.location.origin}/inicio`;
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-    if (error) {
-      alert(error.message);
-      return;
-    }
-    setShowReset(false);
-    alert('Se existir conta para este e-mail, enviamos o link de redefinição.');
+  function openWhatsApp() {
+    const msg = `Olá Pedro! Esqueci minha senha do app PR TEAM.
+Meu e-mail é: ${email || '— preencha seu e-mail —'}
+Meu usuário: ____ 
+Pode me ajudar a redefinir?`;
+    const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+    window.open(url, '_blank');
   }
 
-  // paleta usada nas outras páginas
+  // paleta
   const THEME = {
     bg: '#0E0E10',
     bgGradTop: 'rgba(193,18,31,0.10)',
@@ -112,7 +102,7 @@ export default function LoginPage() {
         }}
       />
 
-      {/* Card central */}
+      {/* Bloco central */}
       <div
         style={{
           width: '100%',
@@ -125,34 +115,17 @@ export default function LoginPage() {
           padding: 18,
         }}
       >
-        {/* Logo */}
-        <div
-          style={{
-            display: 'grid',
-            justifyItems: 'center',
-            gap: 8,
-            padding: '6px 6px 0',
-          }}
-        >
-          <div
-            style={{
-              width: 500,       // controla largura máxima
-              maxWidth: '90%',  // responsivo
-              height: 360,      // altura fixa p/ manter proporção
-              position: 'relative',
-            }}
-          >
+        {/* Logo responsivo sem distorcer */}
+        <div style={{ display: 'grid', justifyItems: 'center', padding: '6px 6px 0' }}>
+          <div style={{ width: '100%', maxWidth: 500, aspectRatio: '10 / 7.8', position: 'relative' }}>
             <Image
               src="/logo.png"
               alt="PR TEAM"
               fill
-              sizes="(max-width: 520px) 90vw, 500px"
               style={{ objectFit: 'contain' }}
               priority
             />
           </div>
-
-          {/* badge */}
           <div
             style={{
               marginTop: 2,
@@ -179,8 +152,13 @@ export default function LoginPage() {
             boxShadow: THEME.softShadow,
           }}
         >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+            <div style={{ fontSize: 16, fontWeight: 900 }}>Entrar</div>
+            <span style={{ fontSize: 12, color: THEME.textMute }} />
+          </div>
+
           <form onSubmit={onLogin}>
-            <label style={{ fontSize: 12, color: THEME.textMute, display: 'block', marginBottom: 8 }}>E-mail</label>
+            <label style={{ fontSize: 12, color: THEME.textMute, display: 'block', margin: '4px 2px 8px' }}>E-mail</label>
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -188,7 +166,7 @@ export default function LoginPage() {
               inputMode="email"
             />
             <div style={{ height: 12 }} />
-            <label style={{ fontSize: 12, color: THEME.textMute, display: 'block', marginBottom: 8 }}>Senha</label>
+            <label style={{ fontSize: 12, color: THEME.textMute, display: 'block', margin: '4px 2px 8px' }}>Senha</label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 type={see ? 'text' : 'password'}
@@ -230,12 +208,12 @@ export default function LoginPage() {
 
           <div style={{ height: 12 }} />
           <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-            <button
-              style={{ fontSize: 12, color: THEME.textMute }}
-              onClick={() => setShowReset(true)}
-            >
-              Esqueci minha senha
-            </button>
+          <button
+  style={{ fontSize: 12, color: THEME.textMute }}
+  onClick={() => setShowReset(true)}   // <- usa a state correta
+>
+  Esqueci minha senha
+</button>
             <button
               style={{ fontSize: 12, color: THEME.textMute }}
               onClick={() => r.push('/register')}
@@ -245,54 +223,42 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Quote */}
         <div style={{ height: 16 }} />
         <blockquote
-          style={{
-            textAlign: 'center',
-            lineHeight: 1.5,
-            color: THEME.textMute,
-            fontSize: 13,
-            margin: 0,
-          }}
+          style={{ textAlign: 'center', lineHeight: 1.5, color: THEME.textMute, fontSize: 13, margin: 0 }}
         >
           “{quote}”
         </blockquote>
+        <div style={{ height: 4 }} />
       </div>
 
-      {/* Modal recuperação */}
-      <Modal
-        open={showReset}
-        onClose={() => setShowReset(false)}
-        title="Recuperar senha"
-        align="center"
-      >
-        <form onSubmit={onReset}>
-          <label style={{ fontSize: 12, color: THEME.textMute, display: 'block', marginBottom: 8 }}>
-            E-mail da conta
-          </label>
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="seu@email.com"
-            inputMode="email"
-          />
-          <div style={{ height: 12 }} />
-          <button
-            className="btn primary"
-            style={{
-              background: `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`,
-              color: '#fff',
-              borderRadius: 14,
-              padding: '14px 16px',
-              fontWeight: 900,
-              boxShadow: '0 8px 22px rgba(193,18,31,.22)',
-            }}
-          >
-            Enviar link
-          </button>
-        </form>
-      </Modal>
+      {/* Popup central "Esqueci minha senha" */}
+<Modal
+  open={showReset}
+  onClose={() => setShowReset(false)}
+  title="Esqueci minha senha"
+>
+  <p style={{ marginBottom: 12 }}>
+    Opa! Esqueceu sua senha? Como este app é exclusivo para alunos, a redefinição
+    é feita direto com o Pedro. Basta clicar abaixo para falar com ele no WhatsApp ✅
+  </p>
+  <button
+    onClick={() => {
+      window.open("https://wa.me/5531997640809?text=Oi Pedro! Esqueci minha senha.", "_blank");
+      setShowReset(false);
+    }}
+    style={{
+      background: "#25D366",
+      color: "#fff",
+      fontWeight: 700,
+      padding: "10px 14px",
+      borderRadius: 10,
+      width: "100%",
+    }}
+  >
+    Falar com Pedro no WhatsApp
+  </button>
+</Modal>
     </main>
   );
 }
