@@ -398,43 +398,124 @@ export default function InicioPage() {
 </section>
 
         {/* Desafios PR TEAM */}
+{/* Desafios PR TEAM (informativo, sem check) */}
 <section
   style={{
     background: THEME.surface,
     border: `1px solid ${THEME.stroke}`,
     borderRadius: 18,
     boxShadow: THEME.shadow,
-    padding: 14,
+    padding: 16,
     display: 'grid',
-    gap: 10,
+    gap: 12,
+    cursor: 'default',
   }}
 >
-  <div style={{ display: 'flex', flexDirection: 'column' }}>
-    <div style={{ fontSize: 16, fontWeight: 900 }}>Desafios PR TEAM</div>
-    <div style={{ fontSize: 12, color: THEME.textMute }}>semanal</div>
+  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+    <div>
+      <div style={{ fontSize: 16, fontWeight: 900 }}>Desafios PR TEAM</div>
+      <div style={{ fontSize: 12, color: THEME.textMute, marginTop: 2 }}>semanal • definidos pelo coach</div>
+    </div>
   </div>
 
-  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-    {[
-      { label: '5 treinos', ok: true },
-      { label: '25 litros de água', ok: false },
-      { label: '90min cárdio', ok: true },
-    ].map((c, i) => (
+  {/* Lista de desafios (somente visual) */}
+  <div style={{ display: 'grid', gap: 10 }}>
+    {/* Desafio 1 */}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 12px',
+        borderRadius: 12,
+        border: `1px solid ${THEME.stroke}`,
+        background: '#141417',
+      }}
+    >
       <div
-        key={i}
+        aria-hidden
         style={{
-          padding: '8px 10px',
-          borderRadius: 999,
-          border: `1px solid ${THEME.stroke}`,
-          background: '#141417',
-          color: c.ok ? THEME.green : THEME.textDim,
-          fontSize: 12,
-          boxShadow: THEME.softShadow,
+          width: 28, height: 28, borderRadius: 8,
+          display: 'grid', placeItems: 'center',
+          background: `linear-gradient(180deg, ${THEME.red}, ${THEME.red2})`,
+          color: '#fff', fontWeight: 900, fontSize: 14,
+          boxShadow: '0 6px 16px rgba(193,18,31,0.25)',
         }}
       >
-        {c.ok ? '✓ ' : '• '}{c.label}
+        🔥
       </div>
-    ))}
+      <div style={{ display: 'grid', gap: 2 }}>
+        <div style={{ fontWeight: 800, color: THEME.text }}>5 treinos</div>
+        <div style={{ fontSize: 12, color: THEME.textMute }}>complete cinco sessões nesta semana</div>
+      </div>
+    </div>
+
+    {/* Desafio 2 */}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 12px',
+        borderRadius: 12,
+        border: `1px solid ${THEME.stroke}`,
+        background: '#141417',
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          width: 28, height: 28, borderRadius: 8,
+          display: 'grid', placeItems: 'center',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
+          border: `1px solid ${THEME.stroke}`,
+          color: THEME.text,
+          fontSize: 14,
+        }}
+      >
+        💧
+      </div>
+      <div style={{ display: 'grid', gap: 2 }}>
+        <div style={{ fontWeight: 800, color: THEME.text }}>25 litros de água</div>
+        <div style={{ fontSize: 12, color: THEME.textMute }}>média de ~3,5 L por dia</div>
+      </div>
+    </div>
+
+    {/* Desafio 3 */}
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        padding: '10px 12px',
+        borderRadius: 12,
+        border: `1px solid ${THEME.stroke}`,
+        background: '#141417',
+      }}
+    >
+      <div
+        aria-hidden
+        style={{
+          width: 28, height: 28, borderRadius: 8,
+          display: 'grid', placeItems: 'center',
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
+          border: `1px solid ${THEME.stroke}`,
+          color: THEME.text,
+          fontSize: 14,
+        }}
+      >
+        ⏱️
+      </div>
+      <div style={{ display: 'grid', gap: 2 }}>
+        <div style={{ fontWeight: 800, color: THEME.text }}>90min cárdio</div>
+        <div style={{ fontSize: 12, color: THEME.textMute }}>soma da semana, intensidade moderada</div>
+      </div>
+    </div>
+  </div>
+
+  {/* Rodapé informativo (opcional) */}
+  <div style={{ fontSize: 11, color: THEME.textMute }}>
+    Os desafios são coletivos e atualizados pelo coach no /admin.
   </div>
 </section>
 
@@ -574,15 +655,218 @@ export default function InicioPage() {
 
       {/* Modais */}
       <Modal open={showMethods} onClose={() => setShowMethods(false)} title="Explicação dos métodos">
-        <div style={{ display: 'grid', gap: 10, color: THEME.textDim, fontSize: 14 }}>
-          <div><strong style={{ color: THEME.text }}>Progressão de carga:</strong> descrição aqui…</div>
-          <div><strong style={{ color: THEME.text }}>Drop set:</strong> descrição aqui…</div>
-          <div><strong style={{ color: THEME.text }}>Cluster set:</strong> descrição aqui…</div>
-          <div><strong style={{ color: THEME.text }}>Pico de contração:</strong> descrição aqui…</div>
-          <div><strong style={{ color: THEME.text }}>Back off-set:</strong> descrição aqui…</div>
-          <div><strong style={{ color: THEME.text }}>FST-7:</strong> descrição aqui…</div>
-        </div>
-      </Modal>
+      <div
+  style={{
+    display: 'grid',
+    gap: 12,
+    maxHeight: '70vh',   // limita a altura a 70% da tela
+    overflowY: 'auto',   // ativa scroll interno
+    paddingRight: 6,     // espaço pro scroll não colar no texto
+  }}
+>
+    {/* Aviso topo */}
+    <div
+      style={{
+        background: THEME.red,
+        color: '#000',
+        borderRadius: 12,
+        padding: 12,
+        fontWeight: 900,
+        lineHeight: 1.35,
+        border: `1px solid ${THEME.stroke}`,
+        boxShadow: THEME.softShadow,
+      }}
+    >
+      COM EXCEÇÃO DA PROGRESSÃO DE CARGA (feita em todas as séries), FAÇA OS DEMAIS
+      MÉTODOS APENAS NAS SÉRIES PRETAS
+    </div>
+
+    {/* ROW: Progressão de carga */}
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
+      <div
+        style={{
+          background: THEME.red,
+          color: '#000',
+          borderRadius: 12,
+          padding: 10,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          border: `1px solid ${THEME.stroke}`,
+        }}
+      >
+        Progressão de carga
+      </div>
+      <div
+        style={{
+          background: '#FFFFFF',
+          color: '#000',
+          borderRadius: 12,
+          padding: 12,
+          border: `1px solid ${THEME.stroke}`,
+          lineHeight: 1.5,
+          fontSize: 14,
+        }}
+      >
+        Progrida a carga, a repetição ou a execução em cada série do exercício. PROGREDIR O DESCANSO TAMBÉM.<br />
+        <strong>obs:</strong> Obrigatório o aumento da carga em kg (não basta repetição ou execução) entre séries de cores diferentes.
+      </div>
+    </div>
+
+    {/* ROW: DROP SET */}
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
+      <div
+        style={{
+          background: THEME.red,
+          color: '#000',
+          borderRadius: 12,
+          padding: 10,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          border: `1px solid ${THEME.stroke}`,
+        }}
+      >
+        DROP SET
+      </div>
+      <div
+        style={{
+          background: '#FFFFFF',
+          color: '#000',
+          borderRadius: 12,
+          padding: 12,
+          border: `1px solid ${THEME.stroke}`,
+          lineHeight: 1.5,
+          fontSize: 14,
+        }}
+      >
+        Divida a série em 3 blocos, sem intervalo entre si, no qual será reduzido 30% da carga de um bloco para outro. Busque falhar em cada bloco.
+      </div>
+    </div>
+
+    {/* ROW: CLUSTER SET */}
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
+      <div
+        style={{
+          background: THEME.red,
+          color: '#000',
+          borderRadius: 12,
+          padding: 10,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          border: `1px solid ${THEME.stroke}`,
+        }}
+      >
+        CLUSTER SET
+      </div>
+      <div
+        style={{
+          background: '#FFFFFF',
+          color: '#000',
+          borderRadius: 12,
+          padding: 12,
+          border: `1px solid ${THEME.stroke}`,
+          lineHeight: 1.5,
+          fontSize: 14,
+        }}
+      >
+        Divida a série em blocos (3 a 6 blocos), com mesmo número de repetições, com 10 a 20 segundos de intervalo entre cada bloco.
+        A falha deve ser feita no último ou nos 2 últimos blocos.
+      </div>
+    </div>
+
+    {/* ROW: PICO DE CONTRAÇÃO */}
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
+      <div
+        style={{
+          background: THEME.red,
+          color: '#000',
+          borderRadius: 12,
+          padding: 10,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          border: `1px solid ${THEME.stroke}`,
+        }}
+      >
+        PICO DE CONTRAÇÃO
+      </div>
+      <div
+        style={{
+          background: '#FFFFFF',
+          color: '#000',
+          borderRadius: 12,
+          padding: 12,
+          border: `1px solid ${THEME.stroke}`,
+          lineHeight: 1.5,
+          fontSize: 14,
+        }}
+      >
+        Deve segurar 2–3 segundos na fase máxima da contração e fazer a fase excêntrica lentamente.
+      </div>
+    </div>
+
+    {/* ROW: BACK OFF SET */}
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
+      <div
+        style={{
+          background: THEME.red,
+          color: '#000',
+          borderRadius: 12,
+          padding: 10,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          border: `1px solid ${THEME.stroke}`,
+        }}
+      >
+        BACK OFF SET
+      </div>
+      <div
+        style={{
+          background: '#FFFFFF',
+          color: '#000',
+          borderRadius: 12,
+          padding: 12,
+          border: `1px solid ${THEME.stroke}`,
+          lineHeight: 1.5,
+          fontSize: 14,
+        }}
+      >
+        Após a última série válida (série em preto), reduza 20% a 30% da carga, descanse de 80” a 90” e faça mais uma série
+        até a falha total, sem contar repetições.
+      </div>
+    </div>
+
+    {/* ROW: FST-7 */}
+    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
+      <div
+        style={{
+          background: THEME.red,
+          color: '#000',
+          borderRadius: 12,
+          padding: 10,
+          fontWeight: 900,
+          textTransform: 'uppercase',
+          border: `1px solid ${THEME.stroke}`,
+        }}
+      >
+        FST-7
+      </div>
+      <div
+        style={{
+          background: '#FFFFFF',
+          color: '#000',
+          borderRadius: 12,
+          padding: 12,
+          border: `1px solid ${THEME.stroke}`,
+          lineHeight: 1.5,
+          fontSize: 14,
+        }}
+      >
+        Faça 7 séries de 10 a 12 repetições, com intervalo de 30 segundos entre elas. O intervalo é ativo: durante os 30 segundos
+        de descanso, fique alongando a musculatura. Utilize uma carga semelhante à carga de reconhecimento (verde). Necessário que
+        esteja quase morrendo na 7ª série (rsrs).
+      </div>
+    </div>
+  </div>
+</Modal>
 
       <Modal open={showDaily} onClose={() => setShowDaily(false)} title="Recado do dia">
         <p style={{ margin: 0, color: THEME.textDim, lineHeight: 1.55 }}>
@@ -617,16 +901,22 @@ export default function InicioPage() {
 >
   <div
     style={{
-      height: 220,
-      border: `1px dashed ${THEME.stroke}`,
+      border: `1px solid ${THEME.stroke}`,
       borderRadius: 12,
-      display: 'grid',
-      placeItems: 'center',
-      color: THEME.textDim,
-      background: '#141417',
+      overflow: 'hidden',
+      background: '#000',
+      aspectRatio: '16 / 9',
     }}
   >
-    Vídeo em breve…
+    <iframe
+      width="100%"
+      height="100%"
+      src="https://www.youtube.com/embed/itsURh_YfD8?si=qDUy2I8Mo3fO3kgG"
+      title="Vacum Tutorial"
+      frameBorder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowFullScreen
+    ></iframe>
   </div>
 </Modal>
       <BottomTabs active="inicio" onNavigate={go} />
