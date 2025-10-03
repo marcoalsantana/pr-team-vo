@@ -9,13 +9,15 @@ export default function ClientWrapper({ children }) {
 
   useEffect(() => {
     const isLogged = typeof window !== 'undefined' && localStorage.getItem('loggedIn');
-    const isLogin = pathname === '/';
 
-    if (!isLogged && !isLogin) {
+    // rotas públicas (não precisam de login)
+    const publicRoutes = ['/', '/register'];
+
+    if (!isLogged && !publicRoutes.includes(pathname)) {
       router.replace('/');
     }
 
-    if (isLogged && isLogin) {
+    if (isLogged && pathname === '/') {
       router.replace('/inicio');
     }
   }, [pathname, router]);

@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Modal from '../components/Modal';
 import { supabase } from '../lib/supabase';
+import Link from 'next/link';
 
 const quote = 'Não é sorte! É trabalho, disciplina, estratégia, constância e dedicação.';
 const WHATSAPP_NUMBER = '5531997640809'; // +55 31 99764-0809
@@ -207,20 +208,23 @@ Pode me ajudar a redefinir?`;
           </form>
 
           <div style={{ height: 12 }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <button
-  style={{ fontSize: 12, color: THEME.textMute }}
-  onClick={() => setShowReset(true)}   // <- usa a state correta
->
-  Esqueci minha senha
-</button>
-            <button
-              style={{ fontSize: 12, color: THEME.textMute }}
-              onClick={() => r.push('/register')}
-            >
-              Criar conta
-            </button>
-          </div>
+          <div className="row" style={{ justifyContent: 'space-between' }}>
+  <button
+    className="sub"
+    onClick={() => setShowReset(true)}
+    style={{ fontSize: 12, color: THEME.textMute }}
+  >
+    Esqueci minha senha
+  </button>
+
+  <Link
+    href="/register"
+    className="sub"
+    style={{ fontSize: 12, color: THEME.textMute, display: 'inline-flex', alignItems: 'center' }}
+  >
+    Criar conta
+  </Link>
+</div>
         </div>
 
         <div style={{ height: 16 }} />
