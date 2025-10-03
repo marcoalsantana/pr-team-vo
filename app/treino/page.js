@@ -1,6 +1,7 @@
+// app/treino/page.jsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomTabs from '../../components/BottomTabs';
 import AccountModal from '../../components/AccountModal';
@@ -8,14 +9,11 @@ import AccountModal from '../../components/AccountModal';
 /* ----------------------- THEME ----------------------- */
 const THEME = {
   bg: '#0E0E10',
-
-  // mesmos layers da /inicio
   bgGradTop: 'rgba(193,18,31,0.08)',
   bgGradMid: 'rgba(255,255,255,0.02)',
   bgGradBot: 'rgba(0,0,0,0)',
   techLine: 'rgba(255,255,255,0.05)',
   techLine2: 'rgba(193,18,31,0.08)',
-
   surface: '#121214',
   stroke: 'rgba(255,255,255,0.08)',
   strokeSoft: 'rgba(255,255,255,0.06)',
@@ -29,49 +27,37 @@ const THEME = {
   softShadow: '0 8px 18px rgba(0,0,0,0.22)',
 };
 
-/* ----------------------- BASE ----------------------- */
-function Modal({ open, onClose, title, children, align = 'center', maxWidth = 420 }) {
-  if (!open) return null;
-  const alignStyle = align === 'top' ? { alignItems: 'flex-start', paddingTop: 20 } : { alignItems: 'center' };
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        display: 'flex', justifyContent: 'center', ...alignStyle,
-        background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '94%', maxWidth, background: THEME.surface,
-          border: `1px solid ${THEME.stroke}`, borderRadius: 16,
-          boxShadow: THEME.shadow, color: THEME.text, padding: 16,
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ fontSize: 16, fontWeight: 800 }}>{title}</div>
-          <button
-            aria-label="Fechar" onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: THEME.textDim, fontSize: 20, cursor: 'pointer' }}
-          >×</button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
+/* ----------------------- HELPERS ----------------------- */
+function startOfWeek(d) {
+  // domingo como início
+  const x = new Date(d);
+  const day = x.getDay(); // 0..6 (0=dom)
+  x.setHours(0,0,0,0);
+  x.setDate(x.getDate() - day);
+  return x;
+}
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+function ymd(d) {
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  const dd = String(d.getDate()).padStart(2,'0');
+  return `${yy}-${mm}-${dd}`;
 }
 
-/* ----------------------- SEMANA: DIAS + BOLINHA COM CHECK ----------------------- */
-function WeekDots({ today = new Date(), doneSet = new Set() }) {
-  const labels = ['D','S','T','Q','Q','S','S']; // dom..sab
-  const todayIdx = today.getDay();
+/* ----------------------- SEMANA ----------------------- */
+function WeekDots({ weekDates = [], doneMap = {} }) {
+  const labels = ['D','S','T','Q','Q','S','S'];
   return (
     <div style={{ display:'flex', justifyContent:'space-between', gap:10 }}>
-      {labels.map((lbl, idx) => {
-        const isToday = idx === todayIdx;
-        const isDone = doneSet.has(idx);
+      {weekDates.map((date, idx) => {
+        const key = ymd(date);
+        const letter = doneMap[key]; // 'A' | 'B' | ...
+        const isDone = !!letter;
+        const isToday = (new Date().toDateString() === date.toDateString());
         return (
           <div key={idx} style={{ textAlign:'center', minWidth:44 }}>
             <div
@@ -80,26 +66,30 @@ function WeekDots({ today = new Date(), doneSet = new Set() }) {
                 letterSpacing: 0.5,
                 color: isToday ? '#FFFFFF' : 'rgba(255,255,255,0.7)',
                 fontWeight: isToday ? 800 : 600,
-                padding: '6px 0',
+                padding: '4px 0',
               }}
             >
-              {lbl}
+              {labels[idx]}
             </div>
             <div
               aria-hidden
               style={{
-                width: 16, height: 16, margin: '4px auto 0',
+                width: 18, height: 18, margin: '4px auto 2px',
                 borderRadius: 999,
                 border: isDone ? 'none' : '1px solid rgba(255,255,255,0.18)',
-                background: isDone 
+                background: isDone
                   ? 'linear-gradient(180deg,#C1121F,#E04141)'
                   : 'transparent',
                 boxShadow: isDone ? '0 0 0 2px rgba(193,18,31,.22)' : 'none',
                 display:'grid', placeItems:'center',
                 color: '#fff', fontSize: 12, lineHeight: 1,
               }}
+              title={isDone ? `Concluído: Treino ${letter}` : 'Não concluído'}
             >
               {isDone ? '✓' : ''}
+            </div>
+            <div style={{ fontSize: 11, color: THEME.textMute, height: 14 }}>
+              {isDone ? `(${letter})` : ''}
             </div>
           </div>
         );
@@ -110,6 +100,7 @@ function WeekDots({ today = new Date(), doneSet = new Set() }) {
 
 /* ----------------------- MODAL: TODOS OS TREINOS ----------------------- */
 function AllWorkoutsModal({ open, onClose, onSelect }) {
+  if (!open) return null;
   const treinos = [
     { id: 'a', titulo: 'Treino A', desc: 'Peito / Tríceps / Core' },
     { id: 'b', titulo: 'Treino B', desc: 'Pernas / Glúteo' },
@@ -117,44 +108,75 @@ function AllWorkoutsModal({ open, onClose, onSelect }) {
     { id: 'd', titulo: 'Treino D', desc: 'Ombros / Core' },
     { id: 'e', titulo: 'Treino E', desc: 'Full Body' },
   ];
-
   return (
-    <Modal open={open} onClose={onClose} title="Todos os treinos">
-      <div style={{ display:'grid', gap:10 }}>
-        {treinos.map(t => (
-          <button
-            key={t.id}
-            onClick={() => onSelect(t.id)}
-            style={{
-              textAlign:'left', width:'100%',
-              background:'#141417', border:`1px solid ${THEME.stroke}`,
-              color:THEME.text, borderRadius:12, padding:12, cursor:'pointer'
-            }}
-          >
-            <div style={{ fontWeight:900 }}>{t.titulo}</div>
-            <div style={{ fontSize:12, color:THEME.textMute }}>{t.desc}</div>
-          </button>
-        ))}
+    <div
+      onClick={onClose}
+      style={{
+        position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,.55)', backdropFilter:'blur(3px)',
+        display:'flex', alignItems:'center', justifyContent:'center', padding:16,
+      }}
+    >
+      <div
+        onClick={(e)=>e.stopPropagation()}
+        style={{
+          width:'94%', maxWidth:420, background:THEME.surface, color:THEME.text,
+          border:`1px solid ${THEME.stroke}`, borderRadius:16, padding:14, boxShadow:THEME.shadow
+        }}
+      >
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+          <div style={{ fontWeight:900 }}>Todos os treinos</div>
+          <button onClick={onClose} style={{ color:THEME.textMute, fontSize:22, background:'none', border:'none', cursor:'pointer' }}>×</button>
+        </div>
+        <div style={{ display:'grid', gap:10 }}>
+          {treinos.map(t => (
+            <button
+              key={t.id}
+              onClick={() => onSelect(t.id)}
+              style={{
+                textAlign:'left', width:'100%',
+                background:'#141417', border:`1px solid ${THEME.stroke}`,
+                color:THEME.text, borderRadius:12, padding:12, cursor:'pointer'
+              }}
+            >
+              <div style={{ fontWeight:900 }}>{t.titulo}</div>
+              <div style={{ fontSize:12, color:THEME.textMute }}>{t.desc}</div>
+            </button>
+          ))}
+        </div>
       </div>
-    </Modal>
+    </div>
   );
 }
 
-/* ----------------------- PÁGINA: PLANO DE TREINO ----------------------- */
+/* ----------------------- PÁGINA ----------------------- */
 export default function PlanoTreinoPage() {
   const router = useRouter();
   const [openAccount, setOpenAccount] = useState(false);
-  const username = 'aluno'; // depois podemos puxar do login real
+  const username = 'aluno';
   const [openAll, setOpenAll] = useState(false);
 
   const go = (href) => router.push(href);
 
-  // mocks para exibir data/validade e progresso da fase
+  // Lê mapa de conclusões (YYYY-MM-DD -> 'A'|'B'...)
+  const [doneMap, setDoneMap] = useState({});
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('completedWorkouts');
+      if (raw) setDoneMap(JSON.parse(raw));
+    } catch {}
+  }, []);
+
+  // calcula semana corrente (domingo..sábado)
+  const weekDates = useMemo(() => {
+    const start = startOfWeek(new Date());
+    return Array.from({ length: 7 }).map((_, i) => addDays(start, i));
+  }, []);
+
+  // mocks fase/streak (visuais)
   const faseInicio = '30/09/24';
   const faseFim = '13/10/24';
-  const fasePct = 45; // ajuste quando ligar com dados reais
-
-  const streakDias = 3; // mock do streak semanal
+  const fasePct = 45;
+  const streakDias = Object.keys(doneMap).length; // simplão
 
   return (
     <div
@@ -175,43 +197,40 @@ export default function PlanoTreinoPage() {
     >
       {/* Header */}
       <header
-  style={{
-    position: 'sticky', top: 0, zIndex: 800,
-    padding: '16px 18px 12px',
-    borderBottom: `1px solid ${THEME.strokeSoft}`,
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0))',
-    backdropFilter: 'blur(2px)',
-  }}
->
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-    <div>
-      <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: .5, display: 'flex', gap: 8, alignItems: 'center' }}>
-        <span style={{ width: 10, height: 10, borderRadius: 2, background: THEME.red, boxShadow: '0 0 0 2px rgba(193,18,31,0.25)' }} />
-        Plano de Treino
-      </div>
-      {/* sem subtítulo */}
-    </div>
+        style={{
+          position: 'sticky', top: 0, zIndex: 800,
+          padding: '16px 18px 12px',
+          borderBottom: `1px solid ${THEME.strokeSoft}`,
+          background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0))',
+          backdropFilter: 'blur(2px)',
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: .5, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <span style={{ width: 10, height: 10, borderRadius: 2, background: THEME.red, boxShadow: '0 0 0 2px rgba(193,18,31,0.25)' }} />
+              Plano de Treino
+            </div>
+          </div>
 
-    {/* Ícone de conta (abre modal) */}
-    <button
-      aria-label="Conta"
-      onClick={() => setOpenAccount(true)}
-      style={{
-        width: 44, height: 44, borderRadius: 12,
-        border: `1px solid ${THEME.stroke}`,
-        background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-        color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
-      }}
-    >
-      👤
-    </button>
-  </div>
-</header>
+          <button
+            aria-label="Conta"
+            onClick={() => setOpenAccount(true)}
+            style={{
+              width: 44, height: 44, borderRadius: 12,
+              border: `1px solid ${THEME.stroke}`,
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+              color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
+            }}
+          >
+            👤
+          </button>
+        </div>
+      </header>
 
       {/* Conteúdo */}
-      <main style={{ padding: '16px 16px 10px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 40 }}>
-
-        {/* 1) Pré-treino essencial (subiu para o topo) */}
+      <main style={{ padding: '16px 16px 10px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 28 }}>
+        {/* Pré-treino essencial */}
         <section
           style={{
             background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
@@ -241,7 +260,7 @@ export default function PlanoTreinoPage() {
           >Ir para mobilidades</button>
         </section>
 
-        {/* 2) Sua semana */}
+        {/* Sua semana (real do localStorage) */}
         <section
           style={{
             background: THEME.surface,
@@ -250,18 +269,17 @@ export default function PlanoTreinoPage() {
             boxShadow: THEME.shadow,
             padding: 16,
             display: 'grid',
-            gap: 12,
+            gap: 10,
           }}
         >
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
             <div style={{ fontSize: 17, fontWeight: 900 }}>Sua semana</div>
-            <div style={{ fontSize: 12, color: THEME.textMute }}>D S T Q Q S S</div>
+            <div style={{ fontSize: 12, color: THEME.textMute }}>dom → sáb</div>
           </div>
-          {/* indique dias concluídos no Set (0=Dom .. 6=Sab) */}
-          <WeekDots doneSet={new Set([1,4])} />
+          <WeekDots weekDates={weekDates} doneMap={doneMap} />
         </section>
 
-        {/* 3) Treino do dia */}
+        {/* Todos os treinos (compacto, sem marcar check antes de concluir) */}
         <section
           style={{
             background: THEME.surface,
@@ -274,43 +292,47 @@ export default function PlanoTreinoPage() {
           }}
         >
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div>
-              <div style={{ fontSize: 17, fontWeight: 900 }}>Treino do dia (hoje)</div>
-              <div style={{ fontSize: 12, color: THEME.textMute, marginTop: 4 }}>Treino B — Pernas</div>
-            </div>
-            <span style={{ fontSize: 12, color: THEME.textMute }}>~ 55 min</span>
+            <div style={{ fontSize: 17, fontWeight: 900 }}>Escolha seu treino</div>
+            <span style={{ fontSize:12, color:THEME.textMute }}>A • B • C • D • E</span>
           </div>
 
-          <div style={{ display:'flex', gap: 8, flexWrap:'wrap' }}>
-            {['Agachamento', 'Leg Press', 'Cadeira Extensora', 'Core'].map((t) => (
-              <span key={t} style={{
-                padding: '8px 10px', borderRadius: 999, border: `1px solid ${THEME.stroke}`,
-                background: '#141417', color: THEME.textDim, fontSize: 12,
-              }}>{t}</span>
+          <div style={{ display:'grid', gap:8 }}>
+            {[
+              { id:'a', title:'Treino A', desc:'Peito / Tríceps / Core' },
+              { id:'b', title:'Treino B', desc:'Pernas / Glúteo' },
+              { id:'c', title:'Treino C', desc:'Costas / Bíceps' },
+              { id:'d', title:'Treino D', desc:'Ombros / Core' },
+              { id:'e', title:'Treino E', desc:'Full Body' },
+            ].map(t => (
+              <button
+                key={t.id}
+                onClick={() => router.push(`/treino/${t.id}`)}
+                style={{
+                  display:'flex', justifyContent:'space-between', alignItems:'center',
+                  background:'#141417', border:`1px solid ${THEME.stroke}`, color:THEME.text,
+                  borderRadius:12, padding:'12px 12px', cursor:'pointer'
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight:900 }}>{t.title}</div>
+                  <div style={{ fontSize:12, color:THEME.textMute }}>{t.desc}</div>
+                </div>
+                <div
+                  aria-hidden
+                  style={{
+                    padding:'6px 10px', borderRadius:999, border:`1px solid ${THEME.stroke}`,
+                    background:'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                    fontSize:12, color:THEME.textDim,
+                  }}
+                >
+                  Abrir ›
+                </div>
+              </button>
             ))}
-          </div>
-
-          <div style={{ display:'flex', gap:10 }}>
-            <button
-              onClick={() => go('/treino/b')}
-              style={{
-                background: `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`,
-                border: 'none', color: THEME.text, fontWeight: 900,
-                borderRadius: 12, padding: '12px 18px', boxShadow: THEME.softShadow, cursor: 'pointer', flex:1,
-              }}
-            >Começar agora</button>
-
-            <button
-              onClick={() => setOpenAll(true)}
-              style={{
-                background: 'transparent', border: `1px solid ${THEME.stroke}`,
-                color: THEME.text, borderRadius: 12, padding: '12px 14px', cursor: 'pointer', fontWeight: 700, flex:1,
-              }}
-            >Ver todos</button>
           </div>
         </section>
 
-        {/* 4) Programa de treino */}
+        {/* Programa + streak */}
         <section
           style={{
             background: THEME.surface,
@@ -318,8 +340,7 @@ export default function PlanoTreinoPage() {
             borderRadius: 18,
             boxShadow: THEME.shadow,
             padding: 16,
-            display: 'grid',
-            gap: 12,
+            display: 'grid', gap: 12,
           }}
         >
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
@@ -363,60 +384,31 @@ export default function PlanoTreinoPage() {
                 }} />
               </div>
             </div>
-          </div>
-        </section>
 
-        {/* 5) Sequência de Treino! (renomeado) */}
-        <section
-          style={{
-            background: THEME.surface,
-            border: `1px solid ${THEME.stroke}`,
-            borderRadius: 18,
-            boxShadow: THEME.shadow,
-            padding: 16,
-            display: 'grid',
-            gap: 10,
-          }}
-        >
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-            <div style={{ fontSize: 16, fontWeight: 900 }}>Sequência de Treino!</div>
-            <span style={{ fontSize:12, color:THEME.textMute }}>mantido com treino diário</span>
-          </div>
-          <div style={{
-            display:'flex', alignItems:'center', gap:12,
-            background:'#141417', border:`1px solid ${THEME.stroke}`, borderRadius:12, padding:12
-          }}>
-            <div style={{
-              width:40, height:40, borderRadius:10, display:'grid', placeItems:'center',
-              background:'linear-gradient(180deg, rgba(193,18,31,.25), rgba(193,18,31,.05))',
-              border:`1px solid ${THEME.stroke}`
-            }}>🔥</div>
-            <div>
-              <div style={{ fontWeight:900, fontSize:18 }}>{streakDias} dias seguidos</div>
-              <div style={{ fontSize:12, color:THEME.textMute }}>rumo à consistência máxima</div>
+            <div
+              style={{
+                display:'flex', alignItems:'center', gap:12,
+                background:'#141417', border:`1px solid ${THEME.stroke}`, borderRadius:12, padding:12
+              }}
+            >
+              <div style={{
+                width:40, height:40, borderRadius:10, display:'grid', placeItems:'center',
+                background:'linear-gradient(180deg, rgba(193,18,31,.25), rgba(193,18,31,.05))',
+                border:`1px solid ${THEME.stroke}`
+              }}>🔥</div>
+              <div>
+                <div style={{ fontWeight:900, fontSize:18 }}>{streakDias} treinos no período</div>
+                <div style={{ fontSize:12, color:THEME.textMute }}>consistência é rei</div>
+              </div>
             </div>
           </div>
-         </section>
+        </section>
       </main>
 
-      {/* Modal: ver todos os treinos */}
-      <AllWorkoutsModal
-        open={openAll}
-        onClose={() => setOpenAll(false)}
-        onSelect={(id) => {
-          setOpenAll(false);
-          router.push(`/treino/${id}`);
-        }}
-      />
-
       {/* Modal de Conta */}
-      <AccountModal 
-  open={openAccount} 
-  onClose={() => setOpenAccount(false)} 
-  username={username}
-/>
+      <AccountModal open={openAccount} onClose={() => setOpenAccount(false)} username={username} />
 
-      <BottomTabs />
+      <BottomTabs active="treino" onNavigate={(href)=>router.push(href)} />
     </div>
   );
 }
