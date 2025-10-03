@@ -3,7 +3,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import BottomTabs from '../../../components/BottomTabs';
 
 const THEME = {
   bg: '#0E0E10',
@@ -20,33 +19,64 @@ const THEME = {
   red: '#C1121F',
   red2: '#E04141',
   shadow: '0 10px 22px rgba(0,0,0,0.30)',
-  softShadow: '0 8px 18px rgba(0,0,0,0.22)',
 };
 
-// --- MOCK (trocaremos depois pra vir do /admin)
+// helpers
+function ymd(d) {
+  const dt = new Date(d); dt.setHours(0,0,0,0);
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, '0');
+  const dd = String(dt.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+
+// --- MOCK DE PLANOS
 const PLANS = {
   a: {
     title: 'Treino A — Peito/Tríceps',
     estTime: '~ 55 min',
     exercises: [
-      { key: 'supret', name: 'Supino reto (barra)', target: '4 x 8–10', defaultWeight: 40, video: 'https://www.youtube.com/embed/1lAV0hWvQGE', sets: 4 },
-      { key: 'supinc', name: 'Supino inclinado (halteres)', target: '3 x 10–12', defaultWeight: 16, video: 'https://www.youtube.com/embed/hOxo9U6Q9uA', sets: 3 },
-      { key: 'cross',  name: 'Cross-over (cabo)',        target: '3 x 12–15', defaultWeight: 12, video: 'https://www.youtube.com/embed/HiRsm4V6Wsg', sets: 3 },
-      { key: 'dips',   name: 'Mergulho no banco',        target: '3 x 10–12', defaultWeight: 0,  video: 'https://www.youtube.com/embed/0326dy_-CzM', sets: 3 },
+      { key: 'supreto', name: 'Supino reto com barra',        target: '4 x 8–10',  defaultWeight: 40, video: 'https://www.youtube.com/embed/1lAV0hWvQGE', sets: 4 },
+      { key: 'supincl', name: 'Supino inclinado com halteres', target: '3 x 10–12', defaultWeight: 16, video: 'https://www.youtube.com/embed/hOxo9U6Q9uA', sets: 3 },
+      { key: 'cross',   name: 'Cross-over (cabo)',             target: '3 x 12–15', defaultWeight: 12, video: 'https://www.youtube.com/embed/HiRsm4V6Wsg',  sets: 3 },
     ],
   },
   b: {
     title: 'Treino B — Pernas/Glúteo',
     estTime: '~ 60 min',
     exercises: [
-      { key: 'agach', name: 'Agachamento livre', target: '4 x 6–8', defaultWeight: 60, video: 'https://www.youtube.com/embed/ultWZbUMPL8', sets: 4 },
-      { key: 'legpr', name: 'Leg press',        target: '4 x 10–12', defaultWeight: 120, video: 'https://www.youtube.com/embed/IZxyjW7MPJQ', sets: 4 },
-      { key: 'exten', name: 'Cadeira extensora',target: '3 x 12–15', defaultWeight: 30, video: 'https://www.youtube.com/embed/YyvSfVjQeL0', sets: 3 },
+      { key: 'agach',  name: 'Agachamento livre',   target: '4 x 6–8',   defaultWeight: 60,  video: 'https://www.youtube.com/embed/1oed-UmAxFs', sets: 4 },
+      { key: 'leg',    name: 'Leg press',           target: '4 x 10–12', defaultWeight: 120, video: 'https://www.youtube.com/embed/uU5tFGD3qJY',   sets: 4 },
+      { key: 'ext',    name: 'Cadeira extensora',   target: '3 x 12–15', defaultWeight: 25,  video: 'https://www.youtube.com/embed/Y_7aHqXeCfQ',    sets: 3 },
     ],
   },
-  c: { title: 'Treino C — Costas/Bíceps', estTime: '~ 55 min', exercises: [] },
-  d: { title: 'Treino D — Ombros/Core',   estTime: '~ 45 min', exercises: [] },
-  e: { title: 'Treino E — Full Body',     estTime: '~ 50 min', exercises: [] },
+  c: {
+    title: 'Treino C — Costas/Bíceps',
+    estTime: '~ 55 min',
+    exercises: [
+      { key: 'puxada', name: 'Puxada na frente', target: '4 x 8–10',  defaultWeight: 45, video: 'https://www.youtube.com/embed/CAwf7n6Luuc', sets: 4 },
+      { key: 'remada', name: 'Remada curvada',   target: '3 x 8–10',  defaultWeight: 40, video: 'https://www.youtube.com/embed/vT2GjY_Umpw',  sets: 3 },
+      { key: 'rosca',  name: 'Rosca direta',     target: '3 x 10–12', defaultWeight: 20, video: 'https://www.youtube.com/embed/ykJmrZ5v0Oo',  sets: 3 },
+    ],
+  },
+  d: {
+    title: 'Treino D — Ombros/Core',
+    estTime: '~ 50 min',
+    exercises: [
+      { key: 'devmil', name: 'Desenvolvimento militar', target: '4 x 8–10',  defaultWeight: 30, video: 'https://www.youtube.com/embed/qEwKCR5JCog', sets: 4 },
+      { key: 'elevl',  name: 'Elevação lateral',        target: '3 x 12–15', defaultWeight: 8,  video: 'https://www.youtube.com/embed/3VcKaXpzqRo', sets: 3 },
+      { key: 'pranch', name: 'Prancha',                 target: '3 x 30–45s', defaultWeight: 0,  video: 'https://www.youtube.com/embed/pSHjTRCQxIw', sets: 3 },
+    ],
+  },
+  e: {
+    title: 'Treino E — Full Body',
+    estTime: '~ 50 min',
+    exercises: [
+      { key: 'agach',  name: 'Agachamento',       target: '3 x 8–10',  defaultWeight: 50, video: 'https://www.youtube.com/embed/1oed-UmAxFs', sets: 3 },
+      { key: 'supino', name: 'Supino reto',       target: '3 x 8–10',  defaultWeight: 40, video: 'https://www.youtube.com/embed/1lAV0hWvQGE', sets: 3 },
+      { key: 'puxada', name: 'Puxada na frente',  target: '3 x 10–12', defaultWeight: 40, video: 'https://www.youtube.com/embed/CAwf7n6Luuc', sets: 3 },
+    ],
+  },
 };
 
 function VideoModal({ open, onClose, title, videoUrl }) {
@@ -93,30 +123,25 @@ function VideoModal({ open, onClose, title, videoUrl }) {
   );
 }
 
-// formata YYYY-MM-DD no fuso do usuário
-function fmtDate(d = new Date()) {
-  const yy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${yy}-${mm}-${dd}`;
-}
-
 export default function WorkoutRunPage() {
   const router = useRouter();
-  const { id } = useParams();        // 'a' | 'b' | ...
-  const plan = PLANS[id] || PLANS.a; // fallback
+  const { id: rawId } = useParams(); // a, b, c, d, e
+  const id = String(rawId || 'a').toLowerCase();
+  const plan = PLANS[id] || PLANS.a;
 
-  // estado do treino (persistido por localStorage)
   const storageKey = useMemo(() => `workout-progress-${id}`, [id]);
   const [progress, setProgress] = useState({});
-  const [videoOpen, setVideoOpen] = useState(null); // key do exercício aberto
+  const [videoOpen, setVideoOpen] = useState(null);
 
   // carrega progresso salvo
   useEffect(() => {
     try {
       const raw = localStorage.getItem(storageKey);
       if (raw) setProgress(JSON.parse(raw));
-    } catch {}
+      else setProgress({});
+    } catch {
+      setProgress({});
+    }
   }, [storageKey]);
 
   // salva a cada mudança
@@ -126,7 +151,7 @@ export default function WorkoutRunPage() {
     } catch {}
   }, [progress, storageKey]);
 
-  // helpers
+  // init helpers
   const initExercise = (ex) => {
     if (progress[ex.key]) return;
     setProgress((p) => ({
@@ -137,14 +162,12 @@ export default function WorkoutRunPage() {
       },
     }));
   };
-
   const setWeight = (exKey, value) => {
     setProgress((p) => ({
       ...p,
       [exKey]: { ...(p[exKey] || {}), weight: value },
     }));
   };
-
   const toggleSet = (exKey, idx) => {
     setProgress((p) => {
       const ex = p[exKey]; if (!ex) return p;
@@ -152,7 +175,6 @@ export default function WorkoutRunPage() {
       return { ...p, [exKey]: { ...ex, sets } };
     });
   };
-
   const setReps = (exKey, idx, reps) => {
     setProgress((p) => {
       const ex = p[exKey]; if (!ex) return p;
@@ -162,29 +184,11 @@ export default function WorkoutRunPage() {
   };
 
   const allDone = useMemo(() => {
-    if (!plan.exercises.length) return false;
     return plan.exercises.every((ex) => {
       const st = progress[ex.key];
       return st && st.sets && st.sets.length === ex.sets && st.sets.every((s) => s.done);
     });
   }, [plan.exercises, progress]);
-
-  // salva conclusão do treino no dia atual
-  function saveCompletion(idLetter) {
-    try {
-      const key = 'completedWorkouts';
-      const raw = localStorage.getItem(key);
-      const obj = raw ? JSON.parse(raw) : {};
-      obj[fmtDate(new Date())] = String(idLetter).toUpperCase();
-      localStorage.setItem(key, JSON.stringify(obj));
-    } catch {}
-  }
-
-  const finalizarTreino = () => {
-    saveCompletion(id);
-    alert('✅ Treino concluído! Vai aparecer na sua semana.');
-    router.replace('/treino');
-  };
 
   return (
     <div
@@ -192,7 +196,7 @@ export default function WorkoutRunPage() {
         minHeight: '100dvh',
         color: THEME.text,
         position: 'relative',
-        paddingBottom: 96,
+        paddingBottom: 24,
         background: `
           linear-gradient(180deg, ${THEME.bgGradTop}, ${THEME.bgGradMid} 20%, ${THEME.bgGradBot}),
           repeating-linear-gradient(-45deg, ${THEME.techLine} 0px, ${THEME.techLine} 1px, transparent 1px, transparent 10px),
@@ -232,18 +236,7 @@ export default function WorkoutRunPage() {
       </header>
 
       {/* Conteúdo */}
-      <main style={{ padding: '14px 14px 10px', maxWidth: 560, margin: '0 auto', display: 'grid', gap: 12 }}>
-        {plan.exercises.length === 0 && (
-          <div
-            style={{
-              background: THEME.surface, border: `1px solid ${THEME.stroke}`, borderRadius: 14, padding: 16,
-              color: THEME.textMute, textAlign: 'center',
-            }}
-          >
-            Este treino ainda não foi configurado. Volte e escolha outro por enquanto.
-          </div>
-        )}
-
+      <main style={{ padding: '14px 14px 80px', maxWidth: 560, margin: '0 auto', display: 'grid', gap: 12 }}>
         {plan.exercises.map((ex) => {
           const st = progress[ex.key];
           return (
@@ -362,7 +355,19 @@ export default function WorkoutRunPage() {
       >
         <button
           disabled={!allDone}
-          onClick={finalizarTreino}
+          onClick={() => {
+            // 1) grava conclusão do treino do dia
+            try {
+              const dateKey = ymd(new Date());
+              const raw = localStorage.getItem('completedWorkouts');
+              const map = raw ? JSON.parse(raw) : {};
+              map[dateKey] = (id || 'a').toUpperCase(); // 'A' | 'B' | ...
+              localStorage.setItem('completedWorkouts', JSON.stringify(map));
+            } catch {}
+
+            // 2) volta pro /treino (a página lê de novo o storage)
+            router.replace('/treino');
+          }}
           style={{
             width: '100%', maxWidth: 560,
             borderRadius: 12,
@@ -376,14 +381,12 @@ export default function WorkoutRunPage() {
               ? `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`
               : '#39393f',
             opacity: allDone ? 1 : .6,
-            boxShadow: allDone ? THEME.softShadow : 'none',
+            boxShadow: allDone ? '0 8px 22px rgba(193,18,31,.22)' : 'none',
           }}
         >
           {allDone ? '✅ Finalizar treino' : 'Conclua todas as séries para finalizar'}
         </button>
       </div>
-
-      <BottomTabs active="treino" onNavigate={(href) => router.push(href)} />
 
       {/* Modal de vídeo */}
       <VideoModal

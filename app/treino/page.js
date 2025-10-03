@@ -29,10 +29,10 @@ const THEME = {
 
 /* ----------------------- HELPERS ----------------------- */
 function startOfWeek(d) {
-  // domingo como início
+  // Domingo como início
   const x = new Date(d);
-  const day = x.getDay(); // 0..6 (0=dom)
-  x.setHours(0,0,0,0);
+  const day = x.getDay(); // 0..6 (0=Dom)
+  x.setHours(0, 0, 0, 0);
   x.setDate(x.getDate() - day);
   return x;
 }
@@ -43,23 +43,23 @@ function addDays(d, n) {
 }
 function ymd(d) {
   const yy = d.getFullYear();
-  const mm = String(d.getMonth()+1).padStart(2,'0');
-  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
   return `${yy}-${mm}-${dd}`;
 }
 
 /* ----------------------- SEMANA ----------------------- */
 function WeekDots({ weekDates = [], doneMap = {} }) {
-  const labels = ['D','S','T','Q','Q','S','S'];
+  const labels = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
   return (
-    <div style={{ display:'flex', justifyContent:'space-between', gap:10 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
       {weekDates.map((date, idx) => {
         const key = ymd(date);
         const letter = doneMap[key]; // 'A' | 'B' | ...
         const isDone = !!letter;
-        const isToday = (new Date().toDateString() === date.toDateString());
+        const isToday = new Date().toDateString() === date.toDateString();
         return (
-          <div key={idx} style={{ textAlign:'center', minWidth:44 }}>
+          <div key={idx} style={{ textAlign: 'center', minWidth: 44 }}>
             <div
               style={{
                 fontSize: 12,
@@ -74,15 +74,20 @@ function WeekDots({ weekDates = [], doneMap = {} }) {
             <div
               aria-hidden
               style={{
-                width: 18, height: 18, margin: '4px auto 2px',
+                width: 18,
+                height: 18,
+                margin: '4px auto 2px',
                 borderRadius: 999,
                 border: isDone ? 'none' : '1px solid rgba(255,255,255,0.18)',
                 background: isDone
                   ? 'linear-gradient(180deg,#C1121F,#E04141)'
                   : 'transparent',
                 boxShadow: isDone ? '0 0 0 2px rgba(193,18,31,.22)' : 'none',
-                display:'grid', placeItems:'center',
-                color: '#fff', fontSize: 12, lineHeight: 1,
+                display: 'grid',
+                placeItems: 'center',
+                color: '#fff',
+                fontSize: 12,
+                lineHeight: 1,
               }}
               title={isDone ? `Concluído: Treino ${letter}` : 'Não concluído'}
             >
@@ -112,34 +117,70 @@ function AllWorkoutsModal({ open, onClose, onSelect }) {
     <div
       onClick={onClose}
       style={{
-        position:'fixed', inset:0, zIndex:1000, background:'rgba(0,0,0,.55)', backdropFilter:'blur(3px)',
-        display:'flex', alignItems:'center', justifyContent:'center', padding:16,
+        position: 'fixed',
+        inset: 0,
+        zIndex: 1000,
+        background: 'rgba(0,0,0,.55)',
+        backdropFilter: 'blur(3px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
       }}
     >
       <div
-        onClick={(e)=>e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
         style={{
-          width:'94%', maxWidth:420, background:THEME.surface, color:THEME.text,
-          border:`1px solid ${THEME.stroke}`, borderRadius:16, padding:14, boxShadow:THEME.shadow
+          width: '94%',
+          maxWidth: 420,
+          background: THEME.surface,
+          color: THEME.text,
+          border: `1px solid ${THEME.stroke}`,
+          borderRadius: 16,
+          padding: 14,
+          boxShadow: THEME.shadow,
         }}
       >
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-          <div style={{ fontWeight:900 }}>Todos os treinos</div>
-          <button onClick={onClose} style={{ color:THEME.textMute, fontSize:22, background:'none', border:'none', cursor:'pointer' }}>×</button>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 8,
+          }}
+        >
+          <div style={{ fontWeight: 900 }}>Todos os treinos</div>
+          <button
+            onClick={onClose}
+            style={{
+              color: THEME.textMute,
+              fontSize: 22,
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            ×
+          </button>
         </div>
-        <div style={{ display:'grid', gap:10 }}>
-          {treinos.map(t => (
+        <div style={{ display: 'grid', gap: 10 }}>
+          {treinos.map((t) => (
             <button
               key={t.id}
               onClick={() => onSelect(t.id)}
               style={{
-                textAlign:'left', width:'100%',
-                background:'#141417', border:`1px solid ${THEME.stroke}`,
-                color:THEME.text, borderRadius:12, padding:12, cursor:'pointer'
+                textAlign: 'left',
+                width: '100%',
+                background: '#141417',
+                border: `1px solid ${THEME.stroke}`,
+                color: THEME.text,
+                borderRadius: 12,
+                padding: 12,
+                cursor: 'pointer',
               }}
             >
-              <div style={{ fontWeight:900 }}>{t.titulo}</div>
-              <div style={{ fontSize:12, color:THEME.textMute }}>{t.desc}</div>
+              <div style={{ fontWeight: 900 }}>{t.titulo}</div>
+              <div style={{ fontSize: 12, color: THEME.textMute }}>{t.desc}</div>
             </button>
           ))}
         </div>
@@ -160,23 +201,41 @@ export default function PlanoTreinoPage() {
   // Lê mapa de conclusões (YYYY-MM-DD -> 'A'|'B'...)
   const [doneMap, setDoneMap] = useState({});
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem('completedWorkouts');
-      if (raw) setDoneMap(JSON.parse(raw));
-    } catch {}
+    const load = () => {
+      try {
+        const raw = localStorage.getItem('completedWorkouts');
+        setDoneMap(raw ? JSON.parse(raw) : {});
+      } catch {
+        setDoneMap({});
+      }
+    };
+    load();
+  
+    const handleFocus = load;
+    const handleStorage = (e) => {
+      if (e.key === 'completedWorkouts') load();
+    };
+  
+    window.addEventListener('focus', handleFocus);
+    window.addEventListener('storage', handleStorage);
+  
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('storage', handleStorage);
+    };
   }, []);
 
-  // calcula semana corrente (domingo..sábado)
+  // Semana corrente (Dom..Sáb)
   const weekDates = useMemo(() => {
     const start = startOfWeek(new Date());
     return Array.from({ length: 7 }).map((_, i) => addDays(start, i));
   }, []);
 
-  // mocks fase/streak (visuais)
+  // Mocks visuais
   const faseInicio = '30/09/24';
   const faseFim = '13/10/24';
   const fasePct = 45;
-  const streakDias = Object.keys(doneMap).length; // simplão
+  const streakDias = Object.keys(doneMap).length;
 
   return (
     <div
@@ -198,17 +257,42 @@ export default function PlanoTreinoPage() {
       {/* Header */}
       <header
         style={{
-          position: 'sticky', top: 0, zIndex: 800,
+          position: 'sticky',
+          top: 0,
+          zIndex: 800,
           padding: '16px 18px 12px',
           borderBottom: `1px solid ${THEME.strokeSoft}`,
           background: 'linear-gradient(180deg, rgba(255,255,255,0.03), rgba(0,0,0,0))',
           backdropFilter: 'blur(2px)',
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
           <div>
-            <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: .5, display: 'flex', gap: 8, alignItems: 'center' }}>
-              <span style={{ width: 10, height: 10, borderRadius: 2, background: THEME.red, boxShadow: '0 0 0 2px rgba(193,18,31,0.25)' }} />
+            <div
+              style={{
+                fontSize: 22,
+                fontWeight: 900,
+                letterSpacing: 0.5,
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+              }}
+            >
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 2,
+                  background: THEME.red,
+                  boxShadow: '0 0 0 2px rgba(193,18,31,0.25)',
+                }}
+              />
               Plano de Treino
             </div>
           </div>
@@ -217,10 +301,16 @@ export default function PlanoTreinoPage() {
             aria-label="Conta"
             onClick={() => setOpenAccount(true)}
             style={{
-              width: 44, height: 44, borderRadius: 12,
+              width: 44,
+              height: 44,
+              borderRadius: 12,
               border: `1px solid ${THEME.stroke}`,
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-              color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
+              background:
+                'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+              color: THEME.textDim,
+              display: 'grid',
+              placeItems: 'center',
+              cursor: 'pointer',
             }}
           >
             👤
@@ -229,11 +319,20 @@ export default function PlanoTreinoPage() {
       </header>
 
       {/* Conteúdo */}
-      <main style={{ padding: '16px 16px 10px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 28 }}>
+      <main
+        style={{
+          padding: '16px 16px 10px',
+          maxWidth: 520,
+          margin: '0 auto',
+          display: 'grid',
+          gap: 28,
+        }}
+      >
         {/* Pré-treino essencial */}
         <section
           style={{
-            background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
+            background:
+              'linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))',
             border: `1px solid ${THEME.stroke}`,
             borderRadius: 16,
             padding: '14px 16px',
@@ -241,26 +340,49 @@ export default function PlanoTreinoPage() {
             boxShadow: THEME.softShadow,
           }}
         >
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 8,
+            }}
+          >
             <div style={{ fontSize: 20, fontWeight: 900 }}>Pré-treino essencial</div>
-            <span style={{
-              fontSize:10, color:THEME.textDim, border:`1px solid ${THEME.stroke}`, padding:'4px 8px',
-              borderRadius:999, background:'#1a1a1d'
-            }}>2–5 min</span>
+            <span
+              style={{
+                fontSize: 10,
+                color: THEME.textDim,
+                border: `1px solid ${THEME.stroke}`,
+                padding: '4px 8px',
+                borderRadius: 999,
+                background: '#1a1a1d',
+              }}
+            >
+              2–5 min
+            </span>
           </div>
-          <div style={{ fontSize: 12, color: THEME.textMute, marginBottom:10 }}>
+          <div style={{ fontSize: 12, color: THEME.textMute, marginBottom: 10 }}>
             ⚡️Não esqueça de fazer sua mobilidade e alongamento de pré-treino!
           </div>
           <button
             onClick={() => go('/mobilidades')}
             style={{
-              background: 'transparent', border: `1px solid ${THEME.stroke}`,
-              color: THEME.text, borderRadius: 12, padding: '12px 14px', cursor: 'pointer', fontWeight:700, width:'100%'
+              background: 'transparent',
+              border: `1px solid ${THEME.stroke}`,
+              color: THEME.text,
+              borderRadius: 12,
+              padding: '12px 14px',
+              cursor: 'pointer',
+              fontWeight: 700,
+              width: '100%',
             }}
-          >Ir para mobilidades</button>
+          >
+            Ir para mobilidades
+          </button>
         </section>
 
-        {/* Sua semana (real do localStorage) */}
+        {/* Sua semana */}
         <section
           style={{
             background: THEME.surface,
@@ -272,14 +394,20 @@ export default function PlanoTreinoPage() {
             gap: 10,
           }}
         >
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'baseline',
+            }}
+          >
             <div style={{ fontSize: 17, fontWeight: 900 }}>Sua semana</div>
             <div style={{ fontSize: 12, color: THEME.textMute }}>dom → sáb</div>
           </div>
           <WeekDots weekDates={weekDates} doneMap={doneMap} />
         </section>
 
-        {/* Todos os treinos (compacto, sem marcar check antes de concluir) */}
+        {/* Escolha seu treino (cards compactos) */}
         <section
           style={{
             background: THEME.surface,
@@ -291,38 +419,50 @@ export default function PlanoTreinoPage() {
             gap: 12,
           }}
         >
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          >
             <div style={{ fontSize: 17, fontWeight: 900 }}>Escolha seu treino</div>
-            <span style={{ fontSize:12, color:THEME.textMute }}>A • B • C • D • E</span>
+            <span style={{ fontSize: 12, color: THEME.textMute }}>A • B • C • D • E</span>
           </div>
 
-          <div style={{ display:'grid', gap:8 }}>
+          <div style={{ display: 'grid', gap: 8 }}>
             {[
-              { id:'a', title:'Treino A', desc:'Peito / Tríceps / Core' },
-              { id:'b', title:'Treino B', desc:'Pernas / Glúteo' },
-              { id:'c', title:'Treino C', desc:'Costas / Bíceps' },
-              { id:'d', title:'Treino D', desc:'Ombros / Core' },
-              { id:'e', title:'Treino E', desc:'Full Body' },
-            ].map(t => (
+              { id: 'a', title: 'Treino A', desc: 'Peito / Tríceps / Core' },
+              { id: 'b', title: 'Treino B', desc: 'Pernas / Glúteo' },
+              { id: 'c', title: 'Treino C', desc: 'Costas / Bíceps' },
+              { id: 'd', title: 'Treino D', desc: 'Ombros / Core' },
+              { id: 'e', title: 'Treino E', desc: 'Full Body' },
+            ].map((t) => (
               <button
                 key={t.id}
                 onClick={() => router.push(`/treino/${t.id}`)}
                 style={{
-                  display:'flex', justifyContent:'space-between', alignItems:'center',
-                  background:'#141417', border:`1px solid ${THEME.stroke}`, color:THEME.text,
-                  borderRadius:12, padding:'12px 12px', cursor:'pointer'
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: '#141417',
+                  border: `1px solid ${THEME.stroke}`,
+                  color: THEME.text,
+                  borderRadius: 12,
+                  padding: '10px 12px',
+                  cursor: 'pointer',
                 }}
               >
                 <div>
-                  <div style={{ fontWeight:900 }}>{t.title}</div>
-                  <div style={{ fontSize:12, color:THEME.textMute }}>{t.desc}</div>
+                  <div style={{ fontWeight: 900, fontSize: 14 }}>{t.title}</div>
+                  <div style={{ fontSize: 12, color: THEME.textMute }}>{t.desc}</div>
                 </div>
                 <div
                   aria-hidden
                   style={{
-                    padding:'6px 10px', borderRadius:999, border:`1px solid ${THEME.stroke}`,
-                    background:'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-                    fontSize:12, color:THEME.textDim,
+                    padding: '6px 10px',
+                    borderRadius: 999,
+                    border: `1px solid ${THEME.stroke}`,
+                    background:
+                      'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                    fontSize: 12,
+                    color: THEME.textDim,
                   }}
                 >
                   Abrir ›
@@ -340,75 +480,141 @@ export default function PlanoTreinoPage() {
             borderRadius: 18,
             boxShadow: THEME.shadow,
             padding: 16,
-            display: 'grid', gap: 12,
+            display: 'grid',
+            gap: 12,
           }}
         >
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+          >
             <div style={{ fontSize: 17, fontWeight: 900 }}>Programa de treino</div>
-            <span style={{ fontSize:12, color:THEME.textMute }}>Ficha válida</span>
+            <span style={{ fontSize: 12, color: THEME.textMute }}>Ficha válida</span>
           </div>
 
           <div
             style={{
-              display:'grid', gap:10,
-              background:'#141417', border:`1px solid ${THEME.stroke}`, borderRadius:12, padding:12
+              display: 'grid',
+              gap: 10,
+              background: '#141417',
+              border: `1px solid ${THEME.stroke}`,
+              borderRadius: 12,
+              padding: 12,
             }}
           >
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+            <div
+              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+            >
               <div>
-                <div style={{ fontWeight:800 }}>Fase atual</div>
-                <div style={{ fontSize:12, color:THEME.textMute }}>
+                <div style={{ fontWeight: 800 }}>Fase atual</div>
+                <div style={{ fontSize: 12, color: THEME.textMute }}>
                   {faseInicio} → {faseFim}
                 </div>
               </div>
-              <div style={{
-                padding:'6px 10px', borderRadius:999, border:`1px solid ${THEME.stroke}`,
-                background:'#18181b', fontSize:12, color:THEME.textDim
-              }}>
+              <div
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  border: `1px solid ${THEME.stroke}`,
+                  background: '#18181b',
+                  fontSize: 12,
+                  color: THEME.textDim,
+                }}
+              >
                 A-B-C-D-E
               </div>
             </div>
 
             <div>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                 <span style={{ fontSize: 12, color: THEME.textMute }}>Progresso da fase</span>
                 <span style={{ fontSize: 12, color: THEME.textDim }}>{fasePct}%</span>
               </div>
-              <div style={{
-                height: 10, borderRadius: 999, background: '#1A1A1D',
-                border: `1px solid ${THEME.strokeSoft}`, overflow: 'hidden',
-              }}>
-                <div style={{
-                  width: `${fasePct}%`, height: '100%',
-                  background: `linear-gradient(90deg, ${THEME.red}, ${THEME.red2})`,
-                }} />
+              <div
+                style={{
+                  height: 10,
+                  borderRadius: 999,
+                  background: '#1A1A1D',
+                  border: `1px solid ${THEME.strokeSoft}`,
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${fasePct}%`,
+                    height: '100%',
+                    background: `linear-gradient(90deg, ${THEME.red}, ${THEME.red2})`,
+                  }}
+                />
               </div>
             </div>
 
             <div
               style={{
-                display:'flex', alignItems:'center', gap:12,
-                background:'#141417', border:`1px solid ${THEME.stroke}`, borderRadius:12, padding:12
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                background: '#141417',
+                border: `1px solid ${THEME.stroke}`,
+                borderRadius: 12,
+                padding: 12,
               }}
             >
-              <div style={{
-                width:40, height:40, borderRadius:10, display:'grid', placeItems:'center',
-                background:'linear-gradient(180deg, rgba(193,18,31,.25), rgba(193,18,31,.05))',
-                border:`1px solid ${THEME.stroke}`
-              }}>🔥</div>
+              <div
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 10,
+                  display: 'grid',
+                  placeItems: 'center',
+                  background:
+                    'linear-gradient(180deg, rgba(193,18,31,.25), rgba(193,18,31,.05))',
+                  border: `1px solid ${THEME.stroke}`,
+                }}
+              >
+                🔥
+              </div>
               <div>
-                <div style={{ fontWeight:900, fontSize:18 }}>{streakDias} treinos no período</div>
-                <div style={{ fontSize:12, color:THEME.textMute }}>consistência é rei</div>
+                <div style={{ fontWeight: 900, fontSize: 18 }}>
+                  {streakDias} treinos no período
+                </div>
+                <div style={{ fontSize: 12, color: THEME.textMute }}>
+                  consistência é rei
+                </div>
               </div>
             </div>
           </div>
-        </section>
-      </main>
+          </section>
+
+{/* Botão de reset (apenas para debug) */}
+<button
+  onClick={() => {
+    localStorage.removeItem('completedWorkouts');
+    window.location.reload();
+  }}
+  style={{
+    marginTop: 20,
+    background: '#222',
+    color: '#fff',
+    border: '1px solid #444',
+    borderRadius: 8,
+    padding: '8px 12px',
+    fontSize: 12,
+    cursor: 'pointer',
+    opacity: 0.5,
+  }}
+>
+  🔄 Resetar semana (debug)
+</button>
+</main>
 
       {/* Modal de Conta */}
-      <AccountModal open={openAccount} onClose={() => setOpenAccount(false)} username={username} />
+      <AccountModal
+        open={openAccount}
+        onClose={() => setOpenAccount(false)}
+        username={username}
+      />
 
-      <BottomTabs active="treino" onNavigate={(href)=>router.push(href)} />
+      <BottomTabs active="treino" onNavigate={(href) => router.push(href)} />
     </div>
   );
 }
