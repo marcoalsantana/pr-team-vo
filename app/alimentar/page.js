@@ -108,7 +108,8 @@ export default function PlanoAlimentarPage() {
       </header>
 
       {/* Conteúdo */}
-      <main style={{ padding: '16px 16px 10px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 20 }}>
+      <main 
+      style={{ padding: '16px 16px 10px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 20 }}>
         <Card title="Refeição I (Café da Manhã)" items={[
           "2 fatias de pão de forma ou 1 pão de sal ou 40g de tapioca",
           "2 ovos + 1 clara",
