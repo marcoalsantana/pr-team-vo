@@ -1,9 +1,13 @@
+// app/inicio/page.jsx
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import AccountModal from '../../components/AccountModal';
+import DailyNote from '../../components/DailyNote';
+import ChallengesCard from '../../components/ChallengesCard';
 
+/* ----------------------- THEME ----------------------- */
 const THEME = {
   bg: '#0E0E10',
   bgGradTop: 'rgba(193,18,31,0.08)',
@@ -28,9 +32,48 @@ const THEME = {
   softShadow: '0 8px 18px rgba(0,0,0,0.22)',
 };
 
+/* ----------------------- HELPERS ----------------------- */
+function ymd(d) {
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${yy}-${mm}-${dd}`;
+}
+function startOfWeek(d) {
+  // Domingo como início
+  const x = new Date(d);
+  const day = x.getDay(); // 0..6 (0=Dom)
+  x.setHours(0, 0, 0, 0);
+  x.setDate(x.getDate() - day);
+  return x;
+}
+function addDays(d, n) {
+  const x = new Date(d);
+  x.setDate(x.getDate() + n);
+  return x;
+}
+function nextFrom(letter) {
+  const cycle = ['A', 'B', 'C', 'D', 'E'];
+  const i = cycle.indexOf((letter || 'A').toUpperCase());
+  if (i < 0) return 'A';
+  return cycle[(i + 1) % cycle.length];
+}
+
+/* Mapeamento de grupos só para “chips” no card Próximo treino */
+const MUSCLES = {
+  A: ['Peito', 'Tríceps', 'Core'],
+  B: ['Pernas', 'Glúteo'],
+  C: ['Costas', 'Bíceps'],
+  D: ['Ombros', 'Core'],
+  E: ['Full Body'],
+};
+
+/* ----------------------- MODAL GENÉRICO ----------------------- */
 function Modal({ open, onClose, title, children, align = 'center' }) {
   if (!open) return null;
-  const alignStyle = align === 'top' ? { alignItems: 'flex-start', paddingTop: 20 } : { alignItems: 'center' };
+  const alignStyle = align === 'top'
+    ? { alignItems: 'flex-start', paddingTop: 20 }
+    : { alignItems: 'center' };
   return (
     <div
       onClick={onClose}
@@ -61,50 +104,75 @@ function Modal({ open, onClose, title, children, align = 'center' }) {
   );
 }
 
-function WeekStrip({ today = new Date(), days = 5 }) {
-  const doneMap = useMemo(() => ({ 0: true, 1: false, 2: true, 3: false, 4: false }), []);
-  const items = useMemo(() => {
-    const a = [];
-    for (let i = 0; i < days; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() - i);
-      a.push(d);
-    }
-    return a.reverse(); // garante que o mais antigo fica à esquerda e hoje à direita
-  }, [today, days]);
-
+/* ----------------------- WEEK DOTS (DOM..SÁB) ----------------------- */
+function WeekDots({ weekDates = [], doneMap = {} }) {
   return (
-    <div style={{ display: 'flex', gap: 10 }}>
-      {items.map((d, idx) => {
-        const label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        const isToday = idx === items.length - 1;
-        const done = !!doneMap[idx];
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        gap: 8,
+      }}
+    >
+      {weekDates.map((date, idx) => {
+        const key = ymd(date);
+        const letter = doneMap[key];
+        const isDone = !!letter;
+        const isToday = new Date().toDateString() === date.toDateString();
+
+        const weekday = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][date.getDay()];
+        const day = String(date.getDate()).padStart(2, '0');
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+
         return (
           <div
             key={idx}
             style={{
-              background: '#17171A',
+              width: 54,
+              background: isToday ? 'rgba(193,18,31,0.08)' : '#17171A',
               border: `1px solid ${THEME.strokeSoft}`,
-              borderRadius: 14,
-              minWidth: 70,
-              padding: '9px 12px',
+              borderRadius: 12,
+              padding: '8px 0',
               textAlign: 'center',
               color: THEME.text,
-              position: 'relative',
-              boxShadow: isToday ? '0 0 0 2px #C1121F' : 'none',
+              boxShadow: isToday ? '0 0 0 2px rgba(193,18,31,0.25)' : 'none',
             }}
           >
             <div style={{ fontSize: 11, color: THEME.textMute, marginBottom: 2 }}>
-              {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'][d.getDay()]}
+              {weekday}
             </div>
-            <div style={{ fontSize: 15, fontWeight: 900 }}>{label}</div>
-            <div style={{ marginTop: 6, fontSize: 13 }}>{done ? '✅' : '—'}</div>
+            <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 4 }}>
+              {day}/{month}
+            </div>
             <div
               style={{
-                position: 'absolute', top: 4, left: 12, right: 12, height: 1,
-                background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.12), transparent)',
+                width: 18,
+                height: 18,
+                borderRadius: '50%',
+                margin: '0 auto 4px',
+                background: isDone
+                  ? 'linear-gradient(180deg,#C1121F,#E04141)'
+                  : 'transparent',
+                border: isDone
+                  ? 'none'
+                  : '1px solid rgba(255,255,255,0.18)',
+                display: 'grid',
+                placeItems: 'center',
+                color: '#fff',
+                fontSize: 12,
               }}
-            />
+            >
+              {isDone ? '✓' : ''}
+            </div>
+            <div
+              style={{
+                fontSize: 10,
+                color: isDone ? THEME.textDim : THEME.textMute,
+                height: 12,
+              }}
+            >
+              {isDone ? `(${letter})` : ''}
+            </div>
           </div>
         );
       })}
@@ -112,34 +180,7 @@ function WeekStrip({ today = new Date(), days = 5 }) {
   );
 }
 
-function GoalChips() {
-  const chips = [
-    { label: 'Cardio 30min', ok: true },
-    { label: 'Água 2L', ok: false },
-    { label: 'Alongar', ok: true },
-  ];
-  return (
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      {chips.map((c, i) => (
-        <div
-          key={i}
-          style={{
-            padding: '8px 10px',
-            borderRadius: 999,
-            border: `1px solid ${THEME.stroke}`,
-            background: '#141417',
-            color: c.ok ? THEME.green : THEME.textDim,
-            fontSize: 12,
-            boxShadow: THEME.softShadow,
-          }}
-        >
-          {c.ok ? '✓ ' : '• '}{c.label}
-        </div>
-      ))}
-    </div>
-  );
-}
-
+/* ----------------------- BOTTOM TABS (mesma UI do projeto) ----------------------- */
 function BottomTabs({ active = 'inicio', onNavigate }) {
   const items = [
     { key: 'inicio', href: '/inicio', lines: ['Início'] },
@@ -152,8 +193,7 @@ function BottomTabs({ active = 'inicio', onNavigate }) {
   const Icon = ({ name, active }) => {
     const stroke = active ? '#FFFFFF' : THEME.textMute;
     const fill = active ? THEME.red : 'none';
-    const s = 28; // tamanho maior
-
+    const s = 28;
     switch (name) {
       case 'inicio':
         return (
@@ -241,17 +281,66 @@ function BottomTabs({ active = 'inicio', onNavigate }) {
   );
 }
 
+/* ----------------------- PÁGINA ----------------------- */
 export default function InicioPage() {
   const router = useRouter();
-  const username = 'aluno';
-  const [showMethods, setShowMethods] = useState(false);
-  const [showDaily, setShowDaily] = useState(false);
-  const [openAccount, setOpenAccount] = useState(false);
-  const [showVacumVideo, setShowVacumVideo] = useState(false);
   const go = (href) => router.push(href);
+  const username = 'aluno';
 
-  // Exemplo de progresso mensal (mock)
-  const monthlyDone = 12;
+  const [openAccount, setOpenAccount] = useState(false);
+  const [showMethods, setShowMethods] = useState(false);
+  const [showVacumVideo, setShowVacumVideo] = useState(false);
+
+  /* --------- completedWorkouts: ler e reagir a mudanças --------- */
+  const [doneMap, setDoneMap] = useState({});
+  useEffect(() => {
+    const load = () => {
+      try {
+        const raw = localStorage.getItem('completedWorkouts');
+        setDoneMap(raw ? JSON.parse(raw) : {});
+      } catch {
+        setDoneMap({});
+      }
+    };
+    load();
+
+    const onStorage = (e) => {
+      if (e.key === 'completedWorkouts') load();
+    };
+    window.addEventListener('focus', load);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('focus', load);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
+  /* --------- Semana corrente (Dom..Sáb) --------- */
+  const weekDates = useMemo(() => {
+    const start = startOfWeek(new Date());
+    return Array.from({ length: 7 }).map((_, i) => addDays(start, i));
+  }, []);
+
+  /* --------- Próximo treino (a partir do último concluído) --------- */
+  const nextId = useMemo(() => {
+    // pega a data mais recente treinada (<= hoje)
+    const entries = Object.entries(doneMap)
+      .map(([k, v]) => ({ date: new Date(k), letter: String(v || '').toUpperCase() }))
+      .filter(e => !Number.isNaN(e.date.getTime()))
+      .sort((a, b) => b.date - a.date); // mais recente primeiro
+
+    const last = entries.find(e => e.date <= new Date());
+    const lastLetter = last?.letter || null;
+    return nextFrom(lastLetter).toLowerCase(); // 'a'..'e' (para exibir e montar hrefs se quiser)
+  }, [doneMap]);
+
+  /* --------- Mocks de resumo mensal --------- */
+  const monthlyDone = useMemo(() => {
+    // conta dias do mês atual que têm treino concluído
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-`;
+    return Object.keys(doneMap).filter(k => k.startsWith(ym)).length;
+  }, [doneMap]);
   const monthlyGoal = 20;
   const pct = Math.min(100, Math.round((monthlyDone / monthlyGoal) * 100));
 
@@ -293,237 +382,118 @@ export default function InicioPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ fontSize: 13, color: THEME.textDim }}>Olá, <strong>{username}</strong>!</div>
             <button
-  aria-label="Conta"
-  onClick={() => setOpenAccount(true)}
-  style={{
-    width: 44, height: 44, borderRadius: 12,
-    border: `1px solid ${THEME.stroke}`,
-    background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-    color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
-  }}
->
-  👤
-</button>
+              aria-label="Conta"
+              onClick={() => setOpenAccount(true)}
+              style={{
+                width: 44, height: 44, borderRadius: 12,
+                border: `1px solid ${THEME.stroke}`,
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                color: THEME.textDim, display: 'grid', placeItems: 'center', cursor: 'pointer',
+              }}
+            >
+              👤
+            </button>
           </div>
         </div>
       </header>
 
       {/* Conteúdo */}
       <main style={{ padding: '16px 16px 10px', maxWidth: 520, margin: '0 auto', display: 'grid', gap: 16 }}>
-     {/* Recado do dia (motivacional) */}
-<section
-  style={{
-    background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
-    border: `1px solid ${THEME.stroke}`,
-    borderRadius: 16,
-    boxShadow: THEME.softShadow,
-    padding: 16,
-    display: 'grid',
-    gap: 10,
-  }}
->
-  <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 4 }}>Recado do dia!</div>
-  <p style={{ margin: 0, color: THEME.text, fontSize: 15, lineHeight: 1.5, fontWeight: 600 }}>
-    A constância é o que separa os que tentam dos que conquistam. Vamos com tudo hoje! 💪
-  </p>
-</section>
 
-        {/* Semana + Próximo treino */}
-<section
-  style={{
-    background: THEME.surface,
-    border: `1px solid ${THEME.stroke}`,
-    borderRadius: 18,
-    boxShadow: THEME.shadow,
-    padding: 16,
-    display: 'grid',
-    gap: 12,
-  }}
->
-  {/* Título */}
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-    <div style={{ fontSize: 17, fontWeight: 900 }}>Sua semana</div>
-    <div style={{ fontSize: 12, color: THEME.textMute }}>treinos planejados</div>
-  </div>
+        {/* Recado do dia */}
+        <DailyNote />
 
-  {/* Calendário */}
-  <WeekStrip />
-
-  {/* Próximo treino dentro do mesmo card */}
-  <div
-    style={{
-      marginTop: 12,
-      paddingTop: 12,
-      borderTop: `1px dashed ${THEME.strokeSoft}`,
-      display: 'grid',
-      gap: 8,
-    }}
-  >
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div style={{ fontSize: 17, fontWeight: 900 }}>Próximo treino</div>
-      <span style={{ fontSize: 12, color: THEME.textMute }}>~ 55 min</span>
-    </div>
-
-    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-      {['Peito', 'Tríceps', 'Core', '8 exercícios'].map((t) => (
-        <span
-          key={t}
+        {/* Sua semana + Próximo treino */}
+        <section
           style={{
-            padding: '8px 10px',
-            borderRadius: 999,
+            background: THEME.surface,
             border: `1px solid ${THEME.stroke}`,
-            background: '#141417',
-            color: THEME.textDim,
-            fontSize: 12,
+            borderRadius: 18,
+            boxShadow: THEME.shadow,
+            padding: 16,
+            display: 'grid',
+            gap: 12,
           }}
         >
-          {t}
-        </span>
-      ))}
-    </div>
+          {/* Título */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <div style={{ fontSize: 17, fontWeight: 900 }}>Sua semana</div>
+            <div style={{ fontSize: 12, color: THEME.textMute }}>dom → sáb</div>
+          </div>
 
-    <button
-      onClick={() => go('/treino')}
-      style={{
-        marginTop: 4,
-        background: `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`,
-        border: 'none',
-        color: THEME.text,
-        fontWeight: 900,
-        borderRadius: 12,
-        padding: '12px 18px',
-        boxShadow: THEME.softShadow,
-        cursor: 'pointer',
-      }}
-    >
-      Começar agora
-    </button>
-  </div>
-</section>
+          {/* Dots semanais com check (lidos do completedWorkouts) */}
+          <WeekDots weekDates={weekDates} doneMap={doneMap} />
 
-        {/* Desafios PR TEAM */}
-{/* Desafios PR TEAM (informativo, sem check) */}
-<section
-  style={{
-    background: THEME.surface,
-    border: `1px solid ${THEME.stroke}`,
-    borderRadius: 18,
-    boxShadow: THEME.shadow,
-    padding: 16,
-    display: 'grid',
-    gap: 12,
-    cursor: 'default',
-  }}
->
-  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-    <div>
-      <div style={{ fontSize: 16, fontWeight: 900 }}>Desafios PR TEAM</div>
-      <div style={{ fontSize: 12, color: THEME.textMute, marginTop: 2 }}>semanal • definidos pelo coach</div>
-    </div>
-  </div>
+          {/* Próximo treino dentro do mesmo card */}
+          <div
+            style={{
+              marginTop: 12,
+              paddingTop: 12,
+              borderTop: `1px dashed ${THEME.strokeSoft}`,
+              display: 'grid',
+              gap: 8,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: 17, fontWeight: 900 }}>
+                Próximo treino — <span style={{ color: THEME.red }}>Treino {nextId.toUpperCase()}</span>
+              </div>
+              <span style={{ fontSize: 12, color: THEME.textMute }}>~ 55 min</span>
+            </div>
 
-  {/* Lista de desafios (somente visual) */}
-  <div style={{ display: 'grid', gap: 10 }}>
-    {/* Desafio 1 */}
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '10px 12px',
-        borderRadius: 12,
-        border: `1px solid ${THEME.stroke}`,
-        background: '#141417',
-      }}
-    >
-      <div
-        aria-hidden
-        style={{
-          width: 28, height: 28, borderRadius: 8,
-          display: 'grid', placeItems: 'center',
-          background: `linear-gradient(180deg, ${THEME.red}, ${THEME.red2})`,
-          color: '#fff', fontWeight: 900, fontSize: 14,
-          boxShadow: '0 6px 16px rgba(193,18,31,0.25)',
-        }}
-      >
-        🔥
-      </div>
-      <div style={{ display: 'grid', gap: 2 }}>
-        <div style={{ fontWeight: 800, color: THEME.text }}>5 treinos</div>
-        <div style={{ fontSize: 12, color: THEME.textMute }}>complete cinco sessões nesta semana</div>
-      </div>
-    </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {(MUSCLES[nextId.toUpperCase()] || []).map((t) => (
+                <span
+                  key={t}
+                  style={{
+                    padding: '8px 10px',
+                    borderRadius: 999,
+                    border: `1px solid ${THEME.stroke}`,
+                    background: '#141417',
+                    color: THEME.textDim,
+                    fontSize: 12,
+                  }}
+                >
+                  {t}
+                </span>
+              ))}
+              <span
+                style={{
+                  padding: '8px 10px',
+                  borderRadius: 999,
+                  border: `1px solid ${THEME.stroke}`,
+                  background: '#141417',
+                  color: THEME.textDim,
+                  fontSize: 12,
+                }}
+              >
+                {`Treino ${nextId.toUpperCase()}`}
+              </span>
+            </div>
 
-    {/* Desafio 2 */}
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '10px 12px',
-        borderRadius: 12,
-        border: `1px solid ${THEME.stroke}`,
-        background: '#141417',
-      }}
-    >
-      <div
-        aria-hidden
-        style={{
-          width: 28, height: 28, borderRadius: 8,
-          display: 'grid', placeItems: 'center',
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
-          border: `1px solid ${THEME.stroke}`,
-          color: THEME.text,
-          fontSize: 14,
-        }}
-      >
-        💧
-      </div>
-      <div style={{ display: 'grid', gap: 2 }}>
-        <div style={{ fontWeight: 800, color: THEME.text }}>25 litros de água</div>
-        <div style={{ fontSize: 12, color: THEME.textMute }}>média de ~3,5 L por dia</div>
-      </div>
-    </div>
+            <button
+              onClick={() => go('/treino')}
+              style={{
+                marginTop: 4,
+                background: `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`,
+                border: 'none',
+                color: THEME.text,
+                fontWeight: 900,
+                borderRadius: 12,
+                padding: '12px 18px',
+                boxShadow: THEME.softShadow,
+                cursor: 'pointer',
+              }}
+            >
+              Começar agora
+            </button>
+          </div>
+        </section>
 
-    {/* Desafio 3 */}
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '10px 12px',
-        borderRadius: 12,
-        border: `1px solid ${THEME.stroke}`,
-        background: '#141417',
-      }}
-    >
-      <div
-        aria-hidden
-        style={{
-          width: 28, height: 28, borderRadius: 8,
-          display: 'grid', placeItems: 'center',
-          background: 'linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02))',
-          border: `1px solid ${THEME.stroke}`,
-          color: THEME.text,
-          fontSize: 14,
-        }}
-      >
-        ⏱️
-      </div>
-      <div style={{ display: 'grid', gap: 2 }}>
-        <div style={{ fontWeight: 800, color: THEME.text }}>90min cárdio</div>
-        <div style={{ fontSize: 12, color: THEME.textMute }}>soma da semana, intensidade moderada</div>
-      </div>
-    </div>
-  </div>
+        {/* Desafios PR TEAM (informativo) */}
+        <ChallengesCard />
 
-  {/* Rodapé informativo (opcional) */}
-  <div style={{ fontSize: 11, color: THEME.textMute }}>
-    Os desafios são coletivos e atualizados pelo coach no /admin.
-  </div>
-</section>
-
-        {/* Resumo + Progresso mensal (ocupa mais espaço) */}
+        {/* Resumo + Progresso mensal */}
         <section
           style={{
             background: THEME.surface, border: `1px solid ${THEME.stroke}`,
@@ -538,11 +508,10 @@ export default function InicioPage() {
             </div>
             <div style={{ paddingLeft: 12 }}>
               <div style={{ fontSize: 12, color: THEME.textMute, marginBottom: 6 }}>Treinos no total</div>
-              <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1 }}>87</div>
+              <div style={{ fontSize: 34, fontWeight: 900, lineHeight: 1 }}>{Object.keys(doneMap).length}</div>
             </div>
           </div>
 
-          {/* Barra de progresso mensal */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span style={{ fontSize: 12, color: THEME.textMute }}>Meta mensal</span>
@@ -560,356 +529,164 @@ export default function InicioPage() {
           </div>
         </section>
 
-        {/* Explicação dos métodos (refinado) */}
-<section
-  onClick={() => setShowMethods(true)}
-  style={{
-    background: THEME.surface,
-    border: `1px solid ${THEME.stroke}`,
-    borderRadius: 18,
-    boxShadow: THEME.shadow,
-    padding: 22,
-    cursor: 'pointer',
-    display: 'grid',
-    gap: 12,
-  }}
->
-  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-    <div>
-      <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 6 }}>Explicação dos métodos</div>
-      <div style={{ fontSize: 14, color: THEME.red, fontWeight: 700 }}>Toque para ver mais</div>
-    </div>
-    <div
-      aria-hidden
-      style={{
-        width: 34, height: 34, borderRadius: 8,
-        border: `1px solid ${THEME.strokeSoft}`,
-        display: 'grid', placeItems: 'center',
-        color: THEME.textDim, fontSize: 16,
-      }}
-    >›</div>
-  </div>
-</section>
-
-        {/* Plano alimentar em destaque (refinado) */}
+        {/* Explicação dos métodos */}
         <section
-  style={{
-    // container fino, só pra manter o mesmo respiro do layout
-    border: `1px solid ${THEME.stroke}`,
-    borderRadius: 14,
-    padding: 0,
-    background: 'transparent',
-    boxShadow: 'none',
-  }}
->
-  <div
-    style={{
-      display: 'grid',
-      gridTemplateColumns: '1fr 1fr',
-      gap: 10,
-    }}
-  >
-    {/* Card 1 — Cardio diário */}
-    <div
-      style={{
-        background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
-        border: `1px solid ${THEME.stroke}`,
-        borderRadius: 14,
-        padding: '12px 14px',
-        color: THEME.text,
-        boxShadow: THEME.softShadow,
-        minHeight: 90,
-        display: 'grid',
-        alignContent: 'center',
-      }}
-    >
-      <div style={{ fontSize: 13, color: THEME.textDim, marginBottom: 4 }}>Cardio</div>
-      <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.35 }}>
-        Faça 30 minutos de cárdio todos os dias (intensidade moderada)
-      </div>
-    </div>
+          onClick={() => setShowMethods(true)}
+          style={{
+            background: THEME.surface,
+            border: `1px solid ${THEME.stroke}`,
+            borderRadius: 18,
+            boxShadow: THEME.shadow,
+            padding: 22,
+            cursor: 'pointer',
+            display: 'grid',
+            gap: 12,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 900, marginBottom: 6 }}>Explicação dos métodos</div>
+              <div style={{ fontSize: 14, color: THEME.red, fontWeight: 700 }}>Toque para ver mais</div>
+            </div>
+            <div
+              aria-hidden
+              style={{
+                width: 34, height: 34, borderRadius: 8,
+                border: `1px solid ${THEME.strokeSoft}`,
+                display: 'grid', placeItems: 'center',
+                color: THEME.textDim, fontSize: 16,
+              }}
+            >›</div>
+          </div>
+        </section>
 
-    {/* Card 2 — Vacum diário (abre modal de vídeo) */}
-    <div
-      onClick={() => setShowVacumVideo(true)}
-      style={{
-        background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
-        border: `1px solid ${THEME.stroke}`,
-        borderRadius: 14,
-        padding: '12px 14px',
-        color: THEME.text,
-        boxShadow: THEME.softShadow,
-        minHeight: 90,
-        display: 'grid',
-        alignContent: 'center',
-        cursor: 'pointer',
-      }}
-    >
-      <div style={{ fontSize: 13, color: THEME.textDim, marginBottom: 4 }}>Vacum</div>
-      <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.35 }}>
-        Faça 5 séries de vacum todos os dias em jejum
-      </div>
-      <div style={{ fontSize: 12, color: THEME.red, marginTop: 6 }}>
-        toque para ver o vídeo
-      </div>
-    </div>
-  </div>
-</section>
+        {/* Plano alimentar / Vacum (atalhos) */}
+        <section
+          style={{
+            border: `1px solid ${THEME.stroke}`,
+            borderRadius: 14,
+            padding: 0,
+            background: 'transparent',
+            boxShadow: 'none',
+          }}
+        >
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div
+              style={{
+                background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
+                border: `1px solid ${THEME.stroke}`,
+                borderRadius: 14,
+                padding: '12px 14px',
+                color: THEME.text,
+                boxShadow: THEME.softShadow,
+                minHeight: 90,
+                display: 'grid',
+                alignContent: 'center',
+              }}
+            >
+              <div style={{ fontSize: 13, color: THEME.textDim, marginBottom: 4 }}>Cardio</div>
+              <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.35 }}>
+                Faça 30 minutos de cárdio todos os dias (intensidade moderada)
+              </div>
+            </div>
+
+            <div
+              onClick={() => setShowVacumVideo(true)}
+              style={{
+                background: `linear-gradient(90deg, rgba(193,18,31,.18), rgba(193,18,31,.07))`,
+                border: `1px solid ${THEME.stroke}`,
+                borderRadius: 14,
+                padding: '12px 14px',
+                color: THEME.text,
+                boxShadow: THEME.softShadow,
+                minHeight: 90,
+                display: 'grid',
+                alignContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <div style={{ fontSize: 13, color: THEME.textDim, marginBottom: 4 }}>Vacum</div>
+              <div style={{ fontSize: 14, fontWeight: 800, lineHeight: 1.35 }}>
+                Faça 5 séries de vacum todos os dias em jejum
+              </div>
+              <div style={{ fontSize: 12, color: THEME.red, marginTop: 6 }}>
+                toque para ver o vídeo
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
 
       {/* Modais */}
       <Modal open={showMethods} onClose={() => setShowMethods(false)} title="Explicação dos métodos">
-      <div
-  style={{
-    display: 'grid',
-    gap: 12,
-    maxHeight: '70vh',   // limita a altura a 70% da tela
-    overflowY: 'auto',   // ativa scroll interno
-    paddingRight: 6,     // espaço pro scroll não colar no texto
-  }}
->
-    {/* Aviso topo */}
-    <div
-      style={{
-        background: THEME.red,
-        color: '#000',
-        borderRadius: 12,
-        padding: 12,
-        fontWeight: 900,
-        lineHeight: 1.35,
-        border: `1px solid ${THEME.stroke}`,
-        boxShadow: THEME.softShadow,
-      }}
-    >
-      COM EXCEÇÃO DA PROGRESSÃO DE CARGA (feita em todas as séries), FAÇA OS DEMAIS
-      MÉTODOS APENAS NAS SÉRIES PRETAS
-    </div>
+        <div style={{ display: 'grid', gap: 12, maxHeight: '70vh', overflowY: 'auto', paddingRight: 6 }}>
+          <div
+            style={{
+              background: THEME.red, color: '#000', borderRadius: 12, padding: 12,
+              fontWeight: 900, lineHeight: 1.35, border: `1px solid ${THEME.stroke}`, boxShadow: THEME.softShadow,
+            }}
+          >
+            COM EXCEÇÃO DA PROGRESSÃO DE CARGA (feita em todas as séries), FAÇA OS DEMAIS MÉTODOS APENAS NAS SÉRIES PRETAS
+          </div>
 
-    {/* ROW: Progressão de carga */}
-    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
-      <div
-        style={{
-          background: THEME.red,
-          color: '#000',
-          borderRadius: 12,
-          padding: 10,
-          fontWeight: 900,
-          textTransform: 'uppercase',
-          border: `1px solid ${THEME.stroke}`,
-        }}
-      >
-        Progressão de carga
-      </div>
-      <div
-        style={{
-          background: '#FFFFFF',
-          color: '#000',
-          borderRadius: 12,
-          padding: 12,
-          border: `1px solid ${THEME.stroke}`,
-          lineHeight: 1.5,
-          fontSize: 14,
-        }}
-      >
-        Progrida a carga, a repetição ou a execução em cada série do exercício. PROGREDIR O DESCANSO TAMBÉM.<br />
-        <strong>obs:</strong> Obrigatório o aumento da carga em kg (não basta repetição ou execução) entre séries de cores diferentes.
-      </div>
-    </div>
-
-    {/* ROW: DROP SET */}
-    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
-      <div
-        style={{
-          background: THEME.red,
-          color: '#000',
-          borderRadius: 12,
-          padding: 10,
-          fontWeight: 900,
-          textTransform: 'uppercase',
-          border: `1px solid ${THEME.stroke}`,
-        }}
-      >
-        DROP SET
-      </div>
-      <div
-        style={{
-          background: '#FFFFFF',
-          color: '#000',
-          borderRadius: 12,
-          padding: 12,
-          border: `1px solid ${THEME.stroke}`,
-          lineHeight: 1.5,
-          fontSize: 14,
-        }}
-      >
-        Divida a série em 3 blocos, sem intervalo entre si, no qual será reduzido 30% da carga de um bloco para outro. Busque falhar em cada bloco.
-      </div>
-    </div>
-
-    {/* ROW: CLUSTER SET */}
-    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
-      <div
-        style={{
-          background: THEME.red,
-          color: '#000',
-          borderRadius: 12,
-          padding: 10,
-          fontWeight: 900,
-          textTransform: 'uppercase',
-          border: `1px solid ${THEME.stroke}`,
-        }}
-      >
-        CLUSTER SET
-      </div>
-      <div
-        style={{
-          background: '#FFFFFF',
-          color: '#000',
-          borderRadius: 12,
-          padding: 12,
-          border: `1px solid ${THEME.stroke}`,
-          lineHeight: 1.5,
-          fontSize: 14,
-        }}
-      >
-        Divida a série em blocos (3 a 6 blocos), com mesmo número de repetições, com 10 a 20 segundos de intervalo entre cada bloco.
-        A falha deve ser feita no último ou nos 2 últimos blocos.
-      </div>
-    </div>
-
-    {/* ROW: PICO DE CONTRAÇÃO */}
-    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
-      <div
-        style={{
-          background: THEME.red,
-          color: '#000',
-          borderRadius: 12,
-          padding: 10,
-          fontWeight: 900,
-          textTransform: 'uppercase',
-          border: `1px solid ${THEME.stroke}`,
-        }}
-      >
-        PICO DE CONTRAÇÃO
-      </div>
-      <div
-        style={{
-          background: '#FFFFFF',
-          color: '#000',
-          borderRadius: 12,
-          padding: 12,
-          border: `1px solid ${THEME.stroke}`,
-          lineHeight: 1.5,
-          fontSize: 14,
-        }}
-      >
-        Deve segurar 2–3 segundos na fase máxima da contração e fazer a fase excêntrica lentamente.
-      </div>
-    </div>
-
-    {/* ROW: BACK OFF SET */}
-    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
-      <div
-        style={{
-          background: THEME.red,
-          color: '#000',
-          borderRadius: 12,
-          padding: 10,
-          fontWeight: 900,
-          textTransform: 'uppercase',
-          border: `1px solid ${THEME.stroke}`,
-        }}
-      >
-        BACK OFF SET
-      </div>
-      <div
-        style={{
-          background: '#FFFFFF',
-          color: '#000',
-          borderRadius: 12,
-          padding: 12,
-          border: `1px solid ${THEME.stroke}`,
-          lineHeight: 1.5,
-          fontSize: 14,
-        }}
-      >
-        Após a última série válida (série em preto), reduza 20% a 30% da carga, descanse de 80” a 90” e faça mais uma série
-        até a falha total, sem contar repetições.
-      </div>
-    </div>
-
-    {/* ROW: FST-7 */}
-    <div style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
-      <div
-        style={{
-          background: THEME.red,
-          color: '#000',
-          borderRadius: 12,
-          padding: 10,
-          fontWeight: 900,
-          textTransform: 'uppercase',
-          border: `1px solid ${THEME.stroke}`,
-        }}
-      >
-        FST-7
-      </div>
-      <div
-        style={{
-          background: '#FFFFFF',
-          color: '#000',
-          borderRadius: 12,
-          padding: 12,
-          border: `1px solid ${THEME.stroke}`,
-          lineHeight: 1.5,
-          fontSize: 14,
-        }}
-      >
-        Faça 7 séries de 10 a 12 repetições, com intervalo de 30 segundos entre elas. O intervalo é ativo: durante os 30 segundos
-        de descanso, fique alongando a musculatura. Utilize uma carga semelhante à carga de reconhecimento (verde). Necessário que
-        esteja quase morrendo na 7ª série (rsrs).
-      </div>
-    </div>
-  </div>
-</Modal>
-
-      <Modal open={showDaily} onClose={() => setShowDaily(false)} title="Recado do dia">
-        <p style={{ margin: 0, color: THEME.textDim, lineHeight: 1.55 }}>
-          Faça alongamentos e mobilidades como pré-treino. 30 minutos de cardio moderado.
-          5 séries de vacum em jejum. Execução perfeita e controle de carga — disciplina e constância.
-        </p>
+          {[
+            ['Progressão de carga', 'Progrida a carga, a repetição ou a execução em cada série do exercício. PROGREDIR O DESCANSO TAMBÉM. Obs: obrigatório aumentar a carga (kg) entre séries de cores diferentes.'],
+            ['DROP SET', 'Divida a série em 3 blocos, sem intervalo entre eles, reduzindo ~30% da carga de um bloco para outro. Busque falhar em cada bloco.'],
+            ['CLUSTER SET', 'Divida a série em 3 a 6 blocos, com mesmo número de repetições e 10–20s de intervalo entre blocos. A falha ocorre no último ou nos 2 últimos blocos.'],
+            ['PICO DE CONTRAÇÃO', 'Segure 2–3s na fase máxima da contração e faça a fase excêntrica lentamente.'],
+            ['BACK OFF SET', 'Após a última série válida (preta), reduza 20–30% da carga, descanse 80–90s e faça mais uma série até a falha total, sem contar repetições.'],
+            ['FST-7', 'Faça 7 séries de 10–12 repetições com 30s de intervalo ativo (alongando a musculatura). Carga semelhante à de reconhecimento (verde).'],
+          ].map(([tag, text]) => (
+            <div key={tag} style={{ display: 'grid', gridTemplateColumns: '140px 1fr', gap: 10 }}>
+              <div
+                style={{
+                  background: THEME.red, color: '#000', borderRadius: 12, padding: 10,
+                  fontWeight: 900, textTransform: 'uppercase', border: `1px solid ${THEME.stroke}`,
+                }}
+              >
+                {tag}
+              </div>
+              <div
+                style={{
+                  background: '#FFFFFF', color: '#000', borderRadius: 12, padding: 12,
+                  border: `1px solid ${THEME.stroke}`, lineHeight: 1.5, fontSize: 14,
+                }}
+              >
+                {text}
+              </div>
+            </div>
+          ))}
+        </div>
       </Modal>
 
-      <AccountModal 
-  open={openAccount} 
-  onClose={() => setOpenAccount(false)} 
-  username={username}
-/>
-
       <Modal
-  open={showVacumVideo}
-  onClose={() => setShowVacumVideo(false)}
-  title="Vacum (tutorial)"
->
-  <div
-    style={{
-      border: `1px solid ${THEME.stroke}`,
-      borderRadius: 12,
-      overflow: 'hidden',
-      background: '#000',
-      aspectRatio: '16 / 9',
-    }}
-  >
-    <iframe
-      width="100%"
-      height="100%"
-      src="https://www.youtube.com/embed/itsURh_YfD8?si=qDUy2I8Mo3fO3kgG"
-      title="Vacum Tutorial"
-      frameBorder="0"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowFullScreen
-    ></iframe>
-  </div>
-</Modal>
+        open={showVacumVideo}
+        onClose={() => setShowVacumVideo(false)}
+        title="Vacum (tutorial)"
+      >
+        <div
+          style={{
+            border: `1px solid ${THEME.stroke}`,
+            borderRadius: 12,
+            overflow: 'hidden',
+            background: '#000',
+            aspectRatio: '16 / 9',
+          }}
+        >
+          <iframe
+            width="100%"
+            height="100%"
+            src="https://www.youtube.com/embed/itsURh_YfD8?si=qDUy2I8Mo3fO3kgG"
+            title="Vacum Tutorial"
+            frameBorder="0"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      </Modal>
+
+      <AccountModal open={openAccount} onClose={() => setOpenAccount(false)} username={username} />
+
       <BottomTabs active="inicio" onNavigate={go} />
     </div>
   );
