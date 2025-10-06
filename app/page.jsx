@@ -170,17 +170,16 @@ export default function LoginPage() {
             boxShadow: THEME.softShadow,
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'baseline',
-              marginBottom: 8,
-            }}
-          >
-            <div style={{ fontSize: 16, fontWeight: 900 }}>Entrar</div>
-            <span style={{ fontSize: 12, color: THEME.textMute }}>usuário + senha</span>
-          </div>
+         <div
+  style={{
+    display: 'flex',
+    justifyContent: 'flex-start',
+    alignItems: 'baseline',
+    marginBottom: 8,
+  }}
+>
+  <div style={{ fontSize: 16, fontWeight: 900 }}>Entrar</div>
+</div>
 
           <form onSubmit={onLogin}>
             <label style={{ fontSize: 12, color: THEME.textMute, display: 'block', margin: '4px 2px 8px' }}>
@@ -256,16 +255,19 @@ export default function LoginPage() {
         {/* Quote no rodapé do bloco */}
         <div style={{ height: 16 }} />
         <blockquote
-          style={{
-            textAlign: 'center',
-            lineHeight: 1.5,
-            color: THEME.textMute,
-            fontSize: 13,
-            margin: 0,
-          }}
-        >
-          “{quote}”
-        </blockquote>
+  style={{
+    textAlign: 'center',
+    lineHeight: 1.5,
+    fontSize: 13,
+    fontWeight: 700,
+    margin: 0,
+    background: `linear-gradient(90deg, ${THEME.red}, ${THEME.red2})`,
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+  }}
+>
+  “{quote}”
+</blockquote>
         <div style={{ height: 4 }} />
       </div>
 
