@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import AccountModal from '../../components/AccountModal';
 import DailyNote from '../../components/DailyNote';
 import ChallengesCard from '../../components/ChallengesCard';
@@ -284,6 +284,9 @@ function BottomTabs({ active = 'inicio', onNavigate }) {
 /* ----------------------- PÁGINA ----------------------- */
 export default function InicioPage() {
   const router = useRouter();
+  const search = useSearchParams();
+  const isEdit = search.get('edit') === '1';
+
   const go = (href) => router.push(href);
   const username = 'aluno';
 
@@ -323,25 +326,64 @@ export default function InicioPage() {
 
   /* --------- Próximo treino (a partir do último concluído) --------- */
   const nextId = useMemo(() => {
-    // pega a data mais recente treinada (<= hoje)
     const entries = Object.entries(doneMap)
       .map(([k, v]) => ({ date: new Date(k), letter: String(v || '').toUpperCase() }))
       .filter(e => !Number.isNaN(e.date.getTime()))
-      .sort((a, b) => b.date - a.date); // mais recente primeiro
+      .sort((a, b) => b.date - a.date);
 
     const last = entries.find(e => e.date <= new Date());
     const lastLetter = last?.letter || null;
-    return nextFrom(lastLetter).toLowerCase(); // 'a'..'e' (para exibir e montar hrefs se quiser)
+    return nextFrom(lastLetter).toLowerCase();
   }, [doneMap]);
 
-  /* --------- Mocks de resumo mensal --------- */
+  /* ----------------------- META MENSAL DINÂMICA -----------------------
+     Armazena no localStorage em 'monthlyGoalConfig' no formato:
+     { mode: 'auto' | 'manual', manual: number }
+     - auto: usa rotação A–E (5 treinos) * ~4 semanas = 20
+     - manual: usa o valor definido
+  --------------------------------------------------------------------- */
+  const DEFAULT_AUTO_GOAL = Object.keys(MUSCLES).length * 4; // 5 * 4 = 20
+  const [goalCfg, setGoalCfg] = useState({ mode: 'auto', manual: DEFAULT_AUTO_GOAL });
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('monthlyGoalConfig');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && (parsed.mode === 'auto' || parsed.mode === 'manual')) {
+          setGoalCfg({
+            mode: parsed.mode,
+            manual: Number.isFinite(+parsed.manual) ? +parsed.manual : DEFAULT_AUTO_GOAL,
+          });
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const monthlyGoal = useMemo(() => {
+    return goalCfg.mode === 'manual'
+      ? Math.max(1, Math.round(goalCfg.manual || DEFAULT_AUTO_GOAL))
+      : DEFAULT_AUTO_GOAL;
+  }, [goalCfg]);
+
+  const saveGoalCfg = () => {
+    try {
+      localStorage.setItem('monthlyGoalConfig', JSON.stringify(goalCfg));
+      alert('Meta mensal salva!');
+    } catch {
+      alert('Não foi possível salvar a meta localmente.');
+    }
+  };
+
+  /* --------- Resumo mensal (valor feito) --------- */
   const monthlyDone = useMemo(() => {
-    // conta dias do mês atual que têm treino concluído
     const now = new Date();
     const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-`;
     return Object.keys(doneMap).filter(k => k.startsWith(ym)).length;
   }, [doneMap]);
-  const monthlyGoal = 20;
+
   const pct = Math.min(100, Math.round((monthlyDone / monthlyGoal) * 100));
 
   return (
@@ -350,7 +392,7 @@ export default function InicioPage() {
         minHeight: '100dvh',
         color: THEME.text,
         position: 'relative',
-        paddingBottom: 96, // espaço para a barra
+        paddingBottom: 96,
         overflow: 'hidden',
         background: `
           linear-gradient(180deg, ${THEME.bgGradTop}, ${THEME.bgGradMid} 20%, ${THEME.bgGradBot}),
@@ -512,11 +554,15 @@ export default function InicioPage() {
             </div>
           </div>
 
+          {/* Barra de progresso mensal + (EDIT MODE) */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 12, color: THEME.textMute }}>Meta mensal</span>
-              <span style={{ fontSize: 12, color: THEME.textDim }}>{pct}% ({monthlyDone}/{monthlyGoal})</span>
+              <span style={{ fontSize: 12, color: THEME.textDim }}>
+                {pct}% ({monthlyDone}/{monthlyGoal})
+              </span>
             </div>
+
             <div style={{
               height: 10, borderRadius: 999, background: '#1A1A1D',
               border: `1px solid ${THEME.strokeSoft}`, overflow: 'hidden',
@@ -526,6 +572,86 @@ export default function InicioPage() {
                 background: `linear-gradient(90deg, ${THEME.red}, ${THEME.red2})`,
               }} />
             </div>
+
+            {/* Editor de meta: aparece apenas com ?edit=1 */}
+            {isEdit && (
+              <div
+                style={{
+                  marginTop: 12,
+                  padding: 12,
+                  borderRadius: 12,
+                  border: `1px solid ${THEME.strokeSoft}`,
+                  background: '#141417',
+                  display: 'grid',
+                  gap: 10,
+                }}
+              >
+                <div style={{ fontSize: 12, color: THEME.textMute, marginBottom: -2 }}>
+                  Configurar meta mensal
+                </div>
+
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <label style={{ fontSize: 12, color: THEME.textDim }}>
+                    Modo
+                  </label>
+                  <select
+                    value={goalCfg.mode}
+                    onChange={(e) => setGoalCfg((g) => ({ ...g, mode: e.target.value }))}
+                    style={{
+                      borderRadius: 10,
+                      border: `1px solid ${THEME.stroke}`,
+                      background: '#0f0f11',
+                      color: THEME.text,
+                      padding: '10px 12px',
+                    }}
+                  >
+                    <option value="auto">Automático (padrão — {DEFAULT_AUTO_GOAL})</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                </div>
+
+                <div style={{ display: goalCfg.mode === 'manual' ? 'grid' : 'none', gap: 8 }}>
+                  <label style={{ fontSize: 12, color: THEME.textDim }}>
+                    Valor manual (nº de treinos no mês)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={goalCfg.manual}
+                    onChange={(e) => setGoalCfg((g) => ({ ...g, manual: +e.target.value }))}
+                    style={{
+                      borderRadius: 10,
+                      border: `1px solid ${THEME.stroke}`,
+                      background: '#0f0f11',
+                      color: THEME.text,
+                      padding: '10px 12px',
+                      width: 140,
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button
+                    onClick={saveGoalCfg}
+                    style={{
+                      background: `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`,
+                      border: 'none',
+                      color: '#fff',
+                      borderRadius: 10,
+                      padding: '10px 14px',
+                      fontWeight: 900,
+                      boxShadow: '0 6px 16px rgba(193,18,31,.22)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Salvar meta
+                  </button>
+                  <div style={{ alignSelf: 'center', fontSize: 12, color: THEME.textMute }}>
+                    Modo atual: <strong style={{ color: THEME.text }}>{goalCfg.mode}</strong> • Meta: <strong style={{ color: THEME.text }}>{monthlyGoal}</strong>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </section>
 

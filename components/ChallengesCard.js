@@ -199,10 +199,6 @@ export default function ChallengesCard() {
           </div>
         ))}
       </div>
-
-      <div style={{ fontSize: 11, color: THEME.textMute }}>
-        Os desafios são coletivos e atualizados pelo coach no /admin.
-      </div>
     </section>
   );
 }
