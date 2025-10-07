@@ -5,6 +5,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import BottomTabs from '../../components/BottomTabs';
 import AccountModal from '../../components/AccountModal';
+import WeekSuggestion from '../../components/WeekSuggestion';
+import SeriesInfoCard from '../../components/SeriesInfoCard';
+import TrainingProgramCard from '../../components/TrainingProgramCard';
 
 /* ----------------------- THEME ----------------------- */
 const THEME = {
@@ -382,6 +385,10 @@ export default function PlanoTreinoPage() {
           </button>
         </section>
 
+
+        <WeekSuggestion theme={THEME} />
+
+        
         {/* Sua semana */}
         <section
           style={{
@@ -406,6 +413,8 @@ export default function PlanoTreinoPage() {
           </div>
           <WeekDots weekDates={weekDates} doneMap={doneMap} />
         </section>
+
+        <SeriesInfoCard />
 
         {/* Escolha seu treino (cards compactos) */}
         <section
@@ -473,117 +482,7 @@ export default function PlanoTreinoPage() {
         </section>
 
         {/* Programa + streak */}
-        <section
-          style={{
-            background: THEME.surface,
-            border: `1px solid ${THEME.stroke}`,
-            borderRadius: 18,
-            boxShadow: THEME.shadow,
-            padding: 16,
-            display: 'grid',
-            gap: 12,
-          }}
-        >
-          <div
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
-            <div style={{ fontSize: 17, fontWeight: 900 }}>Programa de treino</div>
-            <span style={{ fontSize: 12, color: THEME.textMute }}>Ficha válida</span>
-          </div>
-
-          <div
-            style={{
-              display: 'grid',
-              gap: 10,
-              background: '#141417',
-              border: `1px solid ${THEME.stroke}`,
-              borderRadius: 12,
-              padding: 12,
-            }}
-          >
-            <div
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-            >
-              <div>
-                <div style={{ fontWeight: 800 }}>Fase atual</div>
-                <div style={{ fontSize: 12, color: THEME.textMute }}>
-                  {faseInicio} → {faseFim}
-                </div>
-              </div>
-              <div
-                style={{
-                  padding: '6px 10px',
-                  borderRadius: 999,
-                  border: `1px solid ${THEME.stroke}`,
-                  background: '#18181b',
-                  fontSize: 12,
-                  color: THEME.textDim,
-                }}
-              >
-                A-B-C-D-E
-              </div>
-            </div>
-
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 12, color: THEME.textMute }}>Progresso da fase</span>
-                <span style={{ fontSize: 12, color: THEME.textDim }}>{fasePct}%</span>
-              </div>
-              <div
-                style={{
-                  height: 10,
-                  borderRadius: 999,
-                  background: '#1A1A1D',
-                  border: `1px solid ${THEME.strokeSoft}`,
-                  overflow: 'hidden',
-                }}
-              >
-                <div
-                  style={{
-                    width: `${fasePct}%`,
-                    height: '100%',
-                    background: `linear-gradient(90deg, ${THEME.red}, ${THEME.red2})`,
-                  }}
-                />
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                background: '#141417',
-                border: `1px solid ${THEME.stroke}`,
-                borderRadius: 12,
-                padding: 12,
-              }}
-            >
-              <div
-                style={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 10,
-                  display: 'grid',
-                  placeItems: 'center',
-                  background:
-                    'linear-gradient(180deg, rgba(193,18,31,.25), rgba(193,18,31,.05))',
-                  border: `1px solid ${THEME.stroke}`,
-                }}
-              >
-                🔥
-              </div>
-              <div>
-                <div style={{ fontWeight: 900, fontSize: 18 }}>
-                  {streakDias} treinos no período
-                </div>
-                <div style={{ fontSize: 12, color: THEME.textMute }}>
-                  consistência é rei
-                </div>
-              </div>
-            </div>
-          </div>
-          </section>
+        <TrainingProgramCard theme={THEME} />
 
 {/* Botão de reset (apenas para debug) */}
 <button
