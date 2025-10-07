@@ -2,8 +2,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 
+/* ================= THEME ================= */
 const THEME = {
   bg: '#0E0E10',
   bgGradTop: 'rgba(193,18,31,0.08)',
@@ -21,7 +22,7 @@ const THEME = {
   shadow: '0 10px 22px rgba(0,0,0,0.30)',
 };
 
-// helpers
+/* ================= HELPERS ================= */
 function ymd(d) {
   const yy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -29,37 +30,68 @@ function ymd(d) {
   return `${yy}-${mm}-${dd}`;
 }
 
-// ====== Info por tipo de série (cores/legendas) ======
+// transforma links do YouTube/Shorts em embed
+function toEmbed(url = '') {
+  try {
+    if (!url) return '';
+    const u = new URL(url);
+    if (u.hostname.includes('youtube.com')) {
+      if (u.pathname.startsWith('/watch')) {
+        const id = u.searchParams.get('v');
+        return id ? `https://www.youtube.com/embed/${id}` : url;
+      }
+      if (u.pathname.startsWith('/shorts/')) {
+        const id = u.pathname.split('/')[2];
+        return id ? `https://www.youtube.com/embed/${id}` : url;
+      }
+      if (u.pathname.startsWith('/embed/')) return url;
+    }
+    if (u.hostname.includes('youtu.be')) {
+      const id = u.pathname.replace('/', '');
+      return id ? `https://www.youtube.com/embed/${id}` : url;
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
+/* ================= SÉRIES (legendas) ================= */
 const SERIES_INFO = {
   red: {
-    title: 'SÉRIES VERMELHAS (aquecimento)',
-    text:
-      'Faça o número de repetições estipuladas com uma carga na qual você aguentaria fazer mais 10 repetições. DESCANSAR DE 20 a 50 SEGUNDOS NESSAS SÉRIES.',
+    label: 'SÉRIES VERMELHAS (aquecimento)',
+    hint:
+      'Faça as repetições com carga que permitiria mais ~10 reps. DESCANSO: 20–50s.',
     chipBg: 'linear-gradient(180deg,#c1121f,#e04141)',
   },
   green: {
-    title: 'SÉRIES VERDES (ajuste de carga)',
-    text:
-      'Faça o número de repetições estipuladas com uma carga na qual você aguentaria fazer mais 5 repetições, apenas para alimentar a força. DESCANSAR 60 a 90 SEGUNDOS NESSAS SÉRIES.',
+    label: 'SÉRIES VERDES (ajuste de carga)',
+    hint:
+      'Faça as repetições com carga que permitiria mais ~5 reps. DESCANSO: 60–90s.',
     chipBg: 'linear-gradient(180deg,#1f9d55,#27c281)',
   },
   blue: {
-    title: 'SÉRIES AZUIS (válidas)',
-    text:
-      'Séries contabilizadas no volume semanal. Faça as repetições até não aguentar mais com movimento perfeito. DESCANSAR DE 90 SEGUNDOS a 2,5 MINUTOS NESSAS SÉRIES.',
+    label: 'SÉRIES AZUIS (válidas)',
+    hint:
+      'Válidas pro volume semanal. Vá até quase falhar com execução perfeita. DESCANSO: 90s–2,5min.',
     chipBg: 'linear-gradient(180deg,#2563eb,#60a5fa)',
   },
   black: {
-    title: 'SÉRIES PRETAS (falha)',
-    text:
-      'Séries válidas até a falha. Faça as repetições estipuladas sem conseguir realizar mais nenhuma, mesmo com técnica do roubo. DESCANSAR DE 3 a 4 MINUTOS NESSAS SÉRIES.',
+    label: 'SÉRIES PRETAS (falha)',
+    hint:
+      'Até a falha total (mesmo com técnica do “roubo”). DESCANSO: 3–4min.',
     chipBg: 'linear-gradient(180deg,#111,#333)',
   },
 };
+const COLOR_OPTIONS = [
+  { key: 'red', label: 'Vermelha (aquecimento)' },
+  { key: 'green', label: 'Verde (ajuste de carga)' },
+  { key: 'blue', label: 'Azul (válida)' },
+  { key: 'black', label: 'Preta (falha)' },
+];
 
-// ====== Plano do Treino A (Braço) conforme seu exemplo ======
+/* =========== MODELO BASE (apenas fallback) =========== */
 const PLANS = {
-  // Você pode aproveitar o mesmo formato (4 séries) pros outros IDs depois (b, c, d, e).
   a: {
     title: 'Treino A — Braço',
     estTime: '~ 55–65 min',
@@ -68,80 +100,22 @@ const PLANS = {
         key: 'rosca-w',
         name: 'Rosca direta com barra W',
         video: 'https://www.youtube.com/shorts/xIBnRKQFSFA',
-        hint: 'toque no "i" para ver as instruções de cada série',
+        hint: 'Toque no "i" para ver as instruções de cada série',
         sets: [
-          { repsTxt: '1×15', type: 'red' },
-          { repsTxt: '1 a 3 × 3', type: 'green' },
-          { repsTxt: '2 × 6 a 8', type: 'blue' },
-          { repsTxt: '1 × 6 a 8', type: 'black' },
-        ],
-      },
-      {
-        key: 'triceps-corda',
-        name: 'Tríceps corda',
-        video: 'https://www.youtube.com/shorts/gCQCAmOpzx4',
-        hint: 'toque no "i" para ver as instruções de cada série',
-        sets: [
-          { repsTxt: '1×15', type: 'red' },
-          { repsTxt: '1 a 3 × 3', type: 'green' },
-          { repsTxt: '2 × 6 a 8', type: 'blue' },
-          { repsTxt: '1 × 6 a 8', type: 'black' },
-        ],
-      },
-      {
-        key: 'rosca-alternada',
-        name: 'Rosca alternada com halter',
-        video: 'https://www.youtube.com/shorts/3-uSpk4Opmo',
-        hint: 'toque no "i" para ver as instruções de cada série',
-        sets: [
-          { repsTxt: '1×15', type: 'red' },
-          { repsTxt: '1 a 3 × 3', type: 'green' },
-          { repsTxt: '2 × 6 a 8', type: 'blue' },
-          { repsTxt: '1 × 6 a 8', type: 'black' },
-        ],
-      },
-      {
-        key: 'triceps-testa',
-        name: 'Tríceps testa com halter',
-        video: 'https://www.youtube.com/shorts/13DBZJgUahs',
-        hint: 'toque no "i" para ver as instruções de cada série',
-        sets: [
-          { repsTxt: '1×15', type: 'red' },
-          { repsTxt: '1 a 3 × 3', type: 'green' },
-          { repsTxt: '2 × 6 a 8', type: 'blue' },
-          { repsTxt: '1 × 6 a 8', type: 'black' },
-        ],
-      },
-      {
-        key: 'rosca-scott',
-        name: 'Rosca scott máquina',
-        video: 'https://www.youtube.com/shorts/BQi7Ig3jqeE',
-        hint: 'toque no "i" para ver as instruções de cada série',
-        sets: [
-          { repsTxt: '1×15', type: 'red' },
-          { repsTxt: '1 a 3 × 3', type: 'green' },
-          { repsTxt: '2 × 6 a 8', type: 'blue' },
-          { repsTxt: '1 × 6 a 8', type: 'black' },
-        ],
-      },
-      {
-        key: 'triceps-frances',
-        name: 'Tríceps francês com halter',
-        video: 'https://www.youtube.com/shorts/GxT4z4watF4',
-        hint: 'toque no "i" para ver as instruções de cada série',
-        sets: [
-          { repsTxt: '1×15', type: 'red' },
-          { repsTxt: '1 a 3 × 3', type: 'green' },
-          { repsTxt: '2 × 6 a 8', type: 'blue' },
-          { repsTxt: '1 × 6 a 8', type: 'black' },
+          { repsTxt: '1×15', type: 'red', blocks: 1 },
+          { repsTxt: '1 a 3 × 3', type: 'green', blocks: 1 },
+          { repsTxt: '2 × 6 a 8', type: 'blue', blocks: 2 },
+          { repsTxt: '1 × 6 a 8', type: 'black', blocks: 1 },
         ],
       },
     ],
   },
 };
 
+/* ================= Modais ================= */
 function VideoModal({ open, onClose, title, videoUrl }) {
   if (!open) return null;
+  const embed = toEmbed(videoUrl);
   return (
     <div
       onClick={onClose}
@@ -172,7 +146,7 @@ function VideoModal({ open, onClose, title, videoUrl }) {
         <div style={{ borderRadius: 12, overflow: 'hidden', background: '#000', aspectRatio: '16 / 9' }}>
           <iframe
             width="100%" height="100%"
-            src={videoUrl}
+            src={embed}
             title={title}
             frameBorder="0"
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -210,28 +184,50 @@ function InfoModal({ open, onClose, infoKey }) {
               width:14, height:14, borderRadius:4, display:'inline-block',
               background: info.chipBg, border:'1px solid rgba(255,255,255,.15)'
             }}/>
-            {info.title}
+            {info.label}
           </div>
           <button onClick={onClose} style={{ color:THEME.textMute, fontSize:22, background:'none', border:'none', cursor:'pointer' }}>×</button>
         </div>
         <div style={{ fontSize:13, color:THEME.textMute, lineHeight:1.5 }}>
-          {info.text}
+          {info.hint}
         </div>
       </div>
     </div>
   );
 }
 
+/* =================== PÁGINA =================== */
 export default function WorkoutRunPage() {
   const router = useRouter();
   const { id } = useParams(); // a, b, c, d, e
-  const plan = PLANS[id] || PLANS.a;
+  const search = useSearchParams();
+  const isEdit = search?.get('edit') === '1';
 
-  // progresso agora é por série: progress[exKey].sets[i] = { done:boolean, weight:number }
+  /* ---------- Chaves de storage ---------- */
   const storageKey = useMemo(() => `workout-progress-${id}`, [id]);
+  const planStorageKey = useMemo(() => `workout-plan-${id}`, [id]);
+
+  /* ---------- Plano base + estado do plano ---------- */
+  const basePlan = useMemo(() => (PLANS[id] || PLANS.a), [id]);
+  const [plan, setPlan] = useState(basePlan);
+
+  // carrega plano salvo, se houver
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(planStorageKey);
+      if (raw) setPlan(JSON.parse(raw));
+      else setPlan(basePlan);
+    } catch {
+      setPlan(basePlan);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planStorageKey, id]);
+
+  /* ---------- Progresso por série/bloco ---------- */
+  // progress[exKey] = { sets: [{ done: bool, weights: [ ...por bloco ] }] }
   const [progress, setProgress] = useState({});
   const [videoOpen, setVideoOpen] = useState(null);
-  const [infoOpen, setInfoOpen] = useState(null); // 'red' | 'green' | 'blue' | 'black'
+  const [infoOpen, setInfoOpen] = useState(null);
 
   // carrega progresso salvo
   useEffect(() => {
@@ -241,51 +237,195 @@ export default function WorkoutRunPage() {
     } catch {}
   }, [storageKey]);
 
-  // salva a cada mudança
+  // salva progresso
   useEffect(() => {
     try {
       localStorage.setItem(storageKey, JSON.stringify(progress));
     } catch {}
   }, [progress, storageKey]);
 
-  // init para exercício
-  const ensureExercise = (exKey, setsLen) => {
+  /* ---------- Garantias de forma (sem hook dentro do map) ---------- */
+  useEffect(() => {
+    // garante que progress tenha a mesma forma do plan (ex/sets/blocks)
     setProgress((p) => {
-      if (p[exKey]?.sets?.length === setsLen) return p;
-      const sets = Array.from({ length: setsLen }).map((_, i) => {
-        const prev = p[exKey]?.sets?.[i];
-        return prev ?? { done: false, weight: '' };
+      const next = { ...p };
+      (plan.exercises || []).forEach((ex) => {
+        const exState = next[ex.key] || { sets: [] };
+        const sets = (ex.sets || []).map((s, i) => {
+          const prev = exState.sets[i] || { done: false, weights: [] };
+          const blocks = Math.max(1, Number(s.blocks || 1));
+          const weights = Array.from({ length: blocks }).map((_, bi) =>
+            prev.weights && prev.weights[bi] !== undefined ? prev.weights[bi] : ''
+          );
+          return { done: !!prev.done, weights };
+        });
+        next[ex.key] = { sets };
+      });
+      return next;
+    });
+  }, [plan]);
+
+  /* ---------- Derivado: allDone ---------- */
+  const allDone = useMemo(() => {
+    return (plan.exercises || []).every((ex) => {
+      const st = progress[ex.key];
+      if (!st?.sets || st.sets.length !== (ex.sets?.length || 0)) return false;
+      return st.sets.every((s) => s.done);
+    });
+  }, [plan, progress]);
+
+  /* ---------- Mutations de progresso ---------- */
+  const setWeight = (exKey, setIdx, blockIdx, value) => {
+    setProgress((p) => {
+      const ex = p[exKey] || { sets: [] };
+      const sets = ex.sets.map((s, i) => {
+        if (i !== setIdx) return s;
+        const blocks = s.weights.length;
+        const weights = Array.from({ length: blocks }).map((_, bi) =>
+          bi === blockIdx ? value : (s.weights[bi] ?? '')
+        );
+        return { ...s, weights };
       });
       return { ...p, [exKey]: { sets } };
     });
   };
 
-  // set peso por série
-  const setWeight = (exKey, idx, value) => {
+  const toggleSet = (exKey, setIdx) => {
     setProgress((p) => {
-      const ex = p[exKey]; if (!ex) return p;
-      const sets = ex.sets.map((s, i) => i === idx ? { ...s, weight: value } : s);
-      return { ...p, [exKey]: { ...ex, sets } };
+      const ex = p[exKey] || { sets: [] };
+      const sets = ex.sets.map((s, i) => (i === setIdx ? { ...s, done: !s.done } : s));
+      return { ...p, [exKey]: { sets } };
     });
   };
 
-  // toggle série
-  const toggleSet = (exKey, idx) => {
-    setProgress((p) => {
-      const ex = p[exKey]; if (!ex) return p;
-      const sets = ex.sets.map((s, i) => i === idx ? { ...s, done: !s.done } : s);
-      return { ...p, [exKey]: { ...ex, sets } };
+  /* ---------- Mutations do editor (plano) ---------- */
+  const [saveHint, setSaveHint] = useState('');
+  const savePlan = () => {
+    try {
+      localStorage.setItem(planStorageKey, JSON.stringify(plan));
+      setSaveHint('Salvo!');
+      setTimeout(() => setSaveHint(''), 1500);
+    } catch {
+      setSaveHint('Falha ao salvar');
+      setTimeout(() => setSaveHint(''), 2000);
+    }
+  };
+  const resetPlan = () => {
+    try { localStorage.removeItem(planStorageKey); } catch {}
+    setPlan(basePlan);
+    setSaveHint('Reposto');
+    setTimeout(() => setSaveHint(''), 1200);
+  };
+
+  const addExercise = () => {
+    setPlan((old) => {
+      const key = `ex-${Math.random().toString(36).slice(2, 8)}`;
+      const ex = {
+        key,
+        name: 'Novo exercício',
+        video: '',
+        hint: 'Toque no "i" para ver as instruções de cada série',
+        sets: [{ repsTxt: '1×10', type: 'blue', blocks: 1 }],
+      };
+      return { ...old, exercises: [...(old.exercises || []), ex] };
     });
   };
 
-  // tudo concluído?
-  const allDone = useMemo(() => {
-    return plan.exercises.every((ex) => {
-      const st = progress[ex.key];
-      return st && st.sets && st.sets.length === ex.sets.length && st.sets.every((s) => s.done);
+  const removeExercise = (exIdx) => {
+    setPlan((old) => {
+      const arr = (old.exercises || []).slice();
+      const removed = arr.splice(exIdx, 1)[0];
+      // limpa progresso daquele exercício
+      setProgress((p) => {
+        const np = { ...p };
+        if (removed?.key) delete np[removed.key];
+        return np;
+      });
+      return { ...old, exercises: arr };
     });
-  }, [plan.exercises, progress]);
+  };
 
+  const renameExercise = (exIdx, value) => {
+    setPlan((old) => {
+      const arr = old.exercises.slice();
+      const ex = { ...arr[exIdx], name: value };
+      arr[exIdx] = ex;
+      return { ...old, exercises: arr };
+    });
+  };
+
+  const setExerciseVideo = (exIdx, value) => {
+    setPlan((old) => {
+      const arr = old.exercises.slice();
+      const ex = { ...arr[exIdx], video: value };
+      arr[exIdx] = ex;
+      return { ...old, exercises: arr };
+    });
+  };
+
+  const addSeries = (exIdx) => {
+    setPlan((old) => {
+      const arr = old.exercises.slice();
+      const ex = { ...arr[exIdx] };
+      ex.sets = [...(ex.sets || []), { repsTxt: '1×10', type: 'blue', blocks: 1 }];
+      arr[exIdx] = ex;
+      return { ...old, exercises: arr };
+    });
+  };
+
+  const removeSeries = (exIdx, setIdx) => {
+    setPlan((old) => {
+      const arr = old.exercises.slice();
+      const ex = { ...arr[exIdx] };
+      const st = (ex.sets || []).slice();
+      st.splice(setIdx, 1);
+      ex.sets = st;
+      arr[exIdx] = ex;
+      return { ...old, exercises: arr };
+    });
+  };
+
+  const updateSeries = (exIdx, setIdx, patch) => {
+    setPlan((old) => {
+      const arr = old.exercises.slice();
+      const ex = { ...arr[exIdx] };
+      const st = (ex.sets || []).slice();
+      st[setIdx] = { ...st[setIdx], ...patch };
+      ex.sets = st;
+      arr[exIdx] = ex;
+      return { ...old, exercises: arr };
+    });
+  };
+
+  const addBlock = (exIdx, setIdx) => {
+    setPlan((old) => {
+      const arr = old.exercises.slice();
+      const ex = { ...arr[exIdx] };
+      const st = (ex.sets || []).slice();
+      const current = st[setIdx] || { blocks: 1 };
+      const nb = Math.max(1, Number(current.blocks || 1) + 1);
+      st[setIdx] = { ...current, blocks: nb };
+      ex.sets = st;
+      arr[exIdx] = ex;
+      return { ...old, exercises: arr };
+    });
+  };
+
+  const removeBlock = (exIdx, setIdx) => {
+    setPlan((old) => {
+      const arr = old.exercises.slice();
+      const ex = { ...arr[exIdx] };
+      const st = (ex.sets || []).slice();
+      const current = st[setIdx] || { blocks: 1 };
+      const nb = Math.max(1, Number(current.blocks || 1) - 1);
+      st[setIdx] = { ...current, blocks: nb };
+      ex.sets = st;
+      arr[exIdx] = ex;
+      return { ...old, exercises: arr };
+    });
+  };
+
+  /* =============== RENDER =============== */
   return (
     <div
       style={{
@@ -301,7 +441,7 @@ export default function WorkoutRunPage() {
         `,
       }}
     >
-      {/* Header */}
+      {/* Header (igual antes) */}
       <header
         style={{
           position: 'sticky', top: 0, zIndex: 800,
@@ -331,11 +471,76 @@ export default function WorkoutRunPage() {
         <div style={{ width: 40 }} />
       </header>
 
-      {/* Conteúdo */}
-      <main style={{ padding: '14px 14px 80px', maxWidth: 560, margin: '0 auto', display: 'grid', gap: 12 }}>
-        {plan.exercises.map((ex) => {
-          // garante estrutura no primeiro render/interação
-          useEffect(() => { ensureExercise(ex.key, ex.sets.length); }, []); // eslint-disable-line
+      {/* Aviso fixo pequeno (vermelho) */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 58,
+          zIndex: 750,
+          background: 'linear-gradient(90deg, rgba(193,18,31,0.88), rgba(224,65,65,0.88))',
+          color: '#fff',
+          textAlign: 'center',
+          fontSize: 12,
+          fontWeight: 800,
+          letterSpacing: 0.3,
+          padding: '6px 8px',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          backdropFilter: 'blur(4px)',
+          textShadow: '0 1px 3px rgba(0,0,0,0.25)',
+        }}
+      >
+        ⚠️ A progressão de carga entre cada faixa de série é obrigatória!
+      </div>
+
+      <main style={{ padding: '14px 14px 90px', maxWidth: 560, margin: '0 auto', display: 'grid', gap: 12 }}>
+        {/* Barra do editor */}
+        {isEdit && (
+          <div style={{
+            display:'flex', justifyContent:'space-between', alignItems:'center',
+            background:'#141417', border:`1px solid ${THEME.stroke}`, borderRadius:12, padding:10
+          }}>
+            <div style={{ display:'flex', gap:8 }}>
+              <button
+                onClick={savePlan}
+                style={{
+                  border:`1px solid ${THEME.stroke}`, borderRadius:10, padding:'8px 10px',
+                  background:'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                  color:THEME.text, fontSize:12, fontWeight:800
+                }}
+              >
+                💾 Salvar alterações
+              </button>
+              <button
+                onClick={resetPlan}
+                style={{
+                  border:`1px solid ${THEME.stroke}`, borderRadius:10, padding:'8px 10px',
+                  background:'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                  color:THEME.text, fontSize:12, fontWeight:800
+                }}
+              >
+                ↺ Repor modelo
+              </button>
+            </div>
+            <div style={{ fontSize:12, color:THEME.textMute, minWidth:60, textAlign:'right' }}>{saveHint}</div>
+          </div>
+        )}
+
+        {/* Botão para adicionar exercício (editor) */}
+        {isEdit && (
+          <button
+            onClick={addExercise}
+            style={{
+              border: `1px solid ${THEME.stroke}`, borderRadius: 12, padding: '12px 14px',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+              color: THEME.text, fontSize: 13, fontWeight: 900, textAlign:'left'
+            }}
+          >
+            + Adicionar exercício
+          </button>
+        )}
+
+        {/* Lista de exercícios */}
+        {(plan.exercises || []).map((ex, exIdx) => {
           const st = progress[ex.key];
 
           return (
@@ -351,38 +556,86 @@ export default function WorkoutRunPage() {
                 gap: 10,
               }}
             >
+              {/* Cabeçalho do exercício */}
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                <div>
-                  <div style={{ fontSize: 16, fontWeight: 900 }}>{ex.name}</div>
-                  <div style={{ fontSize: 12, color: THEME.textMute }}>{ex.hint}</div>
+                <div style={{ display:'grid', gap:6, flex: 1 }}>
+                  {!isEdit ? (
+                    <>
+                      <div style={{ fontSize: 16, fontWeight: 900 }}>{ex.name}</div>
+                      <div style={{ fontSize: 12, color: THEME.textMute }}>
+                        {ex.hint || 'Toque no "i" para ver as instruções de cada série'}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <input
+                        value={ex.name}
+                        onChange={(e) => renameExercise(exIdx, e.target.value)}
+                        placeholder="Nome do exercício"
+                        style={{
+                          width:'100%', padding:'10px 12px', borderRadius:10,
+                          background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+                          fontWeight:900
+                        }}
+                      />
+                      <input
+                        value={ex.video || ''}
+                        onChange={(e)=>setExerciseVideo(exIdx, e.target.value)}
+                        placeholder="URL do vídeo (YouTube/Shorts/Embed)"
+                        style={{
+                          width:'100%', padding:'8px 10px', borderRadius:10,
+                          background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+                          fontSize:12
+                        }}
+                      />
+                    </>
+                  )}
                 </div>
-                <button
-                  onClick={() => setVideoOpen(ex.key)}
-                  style={{
-                    alignSelf: 'start',
-                    padding: '8px 10px', borderRadius: 10,
-                    border: `1px solid ${THEME.stroke}`,
-                    background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-                    color: THEME.text, fontSize: 12, fontWeight: 800,
-                  }}
-                >
-                  Ver vídeo ›
-                </button>
+
+                {!isEdit ? (
+                  <button
+                    onClick={() => setVideoOpen(ex.key)}
+                    style={{
+                      alignSelf: 'start',
+                      padding: '8px 10px', borderRadius: 10,
+                      border: `1px solid ${THEME.stroke}`,
+                      background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                      color: THEME.text, fontSize: 12, fontWeight: 800,
+                      whiteSpace:'nowrap'
+                    }}
+                  >
+                    Ver vídeo ›
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => removeExercise(exIdx)}
+                    style={{
+                      alignSelf:'start',
+                      padding:'8px 10px', borderRadius:10,
+                      border:`1px solid ${THEME.stroke}`,
+                      background:'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                      color:THEME.text, fontSize:12, fontWeight:800, whiteSpace:'nowrap'
+                    }}
+                  >
+                    Excluir exercício
+                  </button>
+                )}
               </div>
 
               {/* Séries */}
               <div style={{ display: 'grid', gap: 8 }}>
-                {ex.sets.map((s, i) => {
-                  const done = st?.sets?.[i]?.done || false;
-                  const weight = st?.sets?.[i]?.weight ?? '';
-                  const colorInfo = SERIES_INFO[s.type];
+                {(ex.sets || []).map((s, setIdx) => {
+                  const blocks = Math.max(1, Number(s.blocks || 1));
+                  const weights = st?.sets?.[setIdx]?.weights || [];
+                  const done = st?.sets?.[setIdx]?.done || false;
+                  const colorInfo = SERIES_INFO[s.type] || SERIES_INFO.blue;
 
                   return (
                     <div
-                      key={i}
+                      key={setIdx}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'auto auto 1fr auto',
+                        gridTemplateColumns: 'auto 1fr auto',
                         alignItems: 'center',
                         gap: 10,
                         padding: '10px 12px',
@@ -391,126 +644,231 @@ export default function WorkoutRunPage() {
                         background: '#141417',
                       }}
                     >
-                      {/* [Série N ⓘ] */}
+                      {/* ESQUERDA: chip + "Série N" + (i) */}
                       <div style={{ display:'flex', alignItems:'center', gap:8 }}>
                         <span style={{
                           width: 12, height: 12, borderRadius: 4,
-                          background: colorInfo?.chipBg || '#333',
+                          background: colorInfo.chipBg,
                           border: '1px solid rgba(255,255,255,.15)'
                         }}/>
-                        <div style={{ fontSize: 13, fontWeight: 800 }}>Série {i + 1}</div>
+                        <div style={{ fontSize: 13, fontWeight: 800 }}>Série {setIdx + 1}</div>
+                        {!isEdit && (
+                          <button
+                            onClick={() => setInfoOpen(s.type)}
+                            title="Instruções da série"
+                            style={{
+                              border: `1px solid ${THEME.stroke}`,
+                              borderRadius: 8,
+                              padding: '2px 6px',
+                              background: 'linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,0))',
+                              color: THEME.textMute,
+                              fontSize: 12,
+                            }}
+                          >
+                            i
+                          </button>
+                        )}
+                      </div>
+
+                      {/* MEIO: reps + blocos inline (lado a lado e responsivo) */}
+                      <div style={{ minWidth:0 }}>
+                        {!isEdit ? (
+                          <div style={{ fontSize: 12, color: THEME.textMute, marginBottom: 6 }}>
+                            {s.repsTxt}
+                          </div>
+                        ) : (
+                          <div style={{ display: 'grid', gap: 10 }}>
+                            {/* linha de edição da série */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: 10, alignItems:'center' }}>
+                              {/* seletor de cor */}
+                              <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                                <span style={{
+                                  width: 14, height: 14, borderRadius: 4,
+                                  background: (SERIES_INFO[s.type]?.chipBg) || SERIES_INFO.blue.chipBg,
+                                  border: '1px solid rgba(255,255,255,.15)'
+                                }} />
+                                <select
+                                  value={s.type}
+                                  onChange={(e) => updateSeries(exIdx, setIdx, { type: e.target.value })}
+                                  style={{
+                                    background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+                                    borderRadius:8, padding:'6px 8px', fontSize:12
+                                  }}
+                                >
+                                  {COLOR_OPTIONS.map((c) => (
+                                    <option key={c.key} value={c.key}>{c.label}</option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* reps */}
+                              <input
+                                value={s.repsTxt}
+                                onChange={(e) => updateSeries(exIdx, setIdx, { repsTxt: e.target.value })}
+                                placeholder="Repetições (ex: 2 × 6 a 8)"
+                                style={{
+                                  width:'100%', padding:'8px 10px', borderRadius:10,
+                                  background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+                                  fontSize:12
+                                }}
+                              />
+
+                              {/* excluir série */}
+                              <button
+                                onClick={() => removeSeries(exIdx, setIdx)}
+                                style={{
+                                  border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '6px 8px',
+                                  background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                                  color: THEME.text, fontSize: 12, fontWeight: 800, justifySelf:'end'
+                                }}
+                              >
+                                Excluir
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* blocos de carga (sempre visíveis no mesmo subcard) */}
+                        <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+                          {Array.from({ length: blocks }).map((_, bi) => (
+                            <div key={bi} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                              <label style={{ fontSize: 11, color: THEME.textMute }}>Bloco {bi + 1}:</label>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                placeholder="kg"
+                                value={weights[bi] ?? ''}
+                                onChange={(e)=>setWeight(ex.key, setIdx, bi, e.target.value)}
+                                style={{
+                                  width: 86,
+                                  padding: '7px 9px', borderRadius: 10,
+                                  background: '#1a1a1d', color: THEME.text,
+                                  border: `1px solid ${THEME.stroke}`,
+                                  textAlign: 'center',
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Editor de blocks (somente no modo edit) */}
+                        {isEdit && (
+                          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap', marginTop:8 }}>
+                            <span style={{ fontSize:12, color:THEME.textMute }}>Blocos de carga:</span>
+                            <button
+                              onClick={()=>addBlock(exIdx, setIdx)}
+                              style={{
+                                border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '6px 8px',
+                                background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                                color: THEME.text, fontSize: 12, fontWeight: 800
+                              }}
+                            >
+                              + bloco
+                            </button>
+                            <button
+                              onClick={()=>removeBlock(exIdx, setIdx)}
+                              style={{
+                                border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '6px 8px',
+                                background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                                color: THEME.text, fontSize: 12, fontWeight: 800
+                              }}
+                            >
+                              − bloco
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* DIREITA: ✓ */}
+                      {!isEdit && (
                         <button
-                          onClick={() => setInfoOpen(s.type)}
-                          title="Instruções da série"
+                          onClick={() => toggleSet(ex.key, setIdx)}
+                          aria-pressed={done}
+                          title={done ? 'Desmarcar série' : 'Marcar série'}
                           style={{
+                            width: 30, height: 30, borderRadius: 8,
                             border: `1px solid ${THEME.stroke}`,
-                            borderRadius: 8,
-                            padding: '2px 6px',
-                            background: 'linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,0))',
-                            color: THEME.textMute,
-                            fontSize: 12,
+                            background: done ? `linear-gradient(180deg, ${THEME.red}, ${THEME.red2})` : '#1b1b1e',
+                            color: '#fff', fontWeight: 900,
+                            display: 'grid', placeItems: 'center',
                           }}
                         >
-                          i
+                          {done ? '✓' : ''}
                         </button>
-                      </div>
-
-                      {/* [REPS FIXAS] */}
-                      <div style={{ fontSize: 12, color: THEME.textMute }}>
-                        {s.repsTxt}
-                      </div>
-
-                      {/* [Carga: ___kg] */}
-                      <div style={{ display:'flex', alignItems:'center', gap:6, justifySelf:'stretch' }}>
-                        <label style={{ fontSize: 12, color: THEME.textMute }}>Carga:</label>
-                        <input
-                          type="number"
-                          inputMode="numeric"
-                          placeholder="kg"
-                          value={weight}
-                          onChange={(e) => setWeight(ex.key, i, e.target.value)}
-                          style={{
-                            width: '100%', maxWidth: 110,
-                            padding: '8px 10px', borderRadius: 10,
-                            background: '#1a1a1d', color: THEME.text,
-                            border: `1px solid ${THEME.stroke}`,
-                            textAlign: 'center',
-                          }}
-                        />
-                      </div>
-
-                      {/* [✓] */}
-                      <button
-                        onClick={() => toggleSet(ex.key, i)}
-                        aria-pressed={done}
-                        title={done ? 'Desmarcar série' : 'Marcar série'}
-                        style={{
-                          width: 30, height: 30, borderRadius: 8,
-                          border: `1px solid ${THEME.stroke}`,
-                          background: done ? `linear-gradient(180deg, ${THEME.red}, ${THEME.red2})` : '#1b1b1e',
-                          color: '#fff', fontWeight: 900,
-                          display: 'grid', placeItems: 'center',
-                        }}
-                      >
-                        {done ? '✓' : ''}
-                      </button>
+                      )}
                     </div>
                   );
                 })}
               </div>
+
+              {/* Adicionar série (editor) */}
+              {isEdit && (
+                <button
+                  onClick={() => addSeries(exIdx)}
+                  style={{
+                    border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '8px 10px',
+                    background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                    color: THEME.text, fontSize: 12, fontWeight: 800, justifySelf:'start'
+                  }}
+                >
+                  + Adicionar série
+                </button>
+              )}
             </section>
           );
         })}
       </main>
 
-      {/* CTA fixo para finalizar */}
-      <div
-        style={{
-          position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900,
-          padding: '12px 16px calc(env(safe-area-inset-bottom) + 12px)',
-          background: 'linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.6))',
-          display: 'grid', justifyItems: 'center',
-        }}
-      >
-        <button
-          disabled={!allDone}
-          onClick={() => {
-            try {
-              const dateKey = ymd(new Date());
-              const raw = localStorage.getItem('completedWorkouts');
-              const map = raw ? JSON.parse(raw) : {};
-              map[dateKey] = (id || 'a').toUpperCase(); // salva A/B/C/D/E
-              localStorage.setItem('completedWorkouts', JSON.stringify(map));
-            } catch {}
-            router.replace('/treino'); // volta pra página que mostra a semana e já puxa o check
-          }}
+            {/* CTA fixo para finalizar */}
+            {!isEdit && (
+        <div
           style={{
-            width: '100%', maxWidth: 560,
-            borderRadius: 12,
-            padding: '16px',
-            border: 'none',
-            fontWeight: 900,
-            fontSize: 15,
-            color: '#fff',
-            cursor: allDone ? 'pointer' : 'not-allowed',
-            background: allDone
-              ? `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`
-              : '#39393f',
-            opacity: allDone ? 1 : .6,
-            boxShadow: allDone ? '0 8px 22px rgba(193,18,31,.22)' : 'none',
+            position: 'fixed', left: 0, right: 0, bottom: 0, zIndex: 900,
+            padding: '12px 16px calc(env(safe-area-inset-bottom) + 12px)',
+            background: 'linear-gradient(180deg, rgba(0,0,0,0), rgba(0,0,0,.6))',
+            display: 'grid', justifyItems: 'center',
           }}
         >
-          {allDone ? '✅ Finalizar treino' : 'Conclua todas as séries para finalizar'}
-        </button>
-      </div>
+          <button
+            disabled={!allDone}
+            onClick={() => {
+              try {
+                const dateKey = ymd(new Date());
+                const raw = localStorage.getItem('completedWorkouts');
+                const map = raw ? JSON.parse(raw) : {};
+                map[dateKey] = (id || 'a').toUpperCase(); // salva A/B/C/D/E
+                localStorage.setItem('completedWorkouts', JSON.stringify(map));
+              } catch {}
+              router.replace('/treino'); // volta pra lista (marca check em "Sua semana")
+            }}
+            style={{
+              width: '100%', maxWidth: 560,
+              borderRadius: 12,
+              padding: '16px',
+              border: 'none',
+              fontWeight: 900,
+              fontSize: 15,
+              color: '#fff',
+              cursor: allDone ? 'pointer' : 'not-allowed',
+              background: allDone
+                ? `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`
+                : '#39393f',
+              opacity: allDone ? 1 : .6,
+              boxShadow: allDone ? '0 8px 22px rgba(193,18,31,.22)' : 'none',
+            }}
+          >
+            {allDone ? '✅ Finalizar treino' : 'Conclua todas as séries para finalizar'}
+          </button>
+        </div>
+      )}
 
+      {/* Modais */}
       <VideoModal
         open={!!videoOpen}
         onClose={() => setVideoOpen(null)}
-        title={plan.exercises.find(e => e.key === videoOpen)?.name || 'Vídeo'}
-        videoUrl={(plan.exercises.find(e => e.key === videoOpen)?.video) || ''}
+        title={(plan.exercises || []).find(e => e.key === videoOpen)?.name || 'Vídeo'}
+        videoUrl={(plan.exercises || []).find(e => e.key === videoOpen)?.video || ''}
       />
-
       <InfoModal
         open={!!infoOpen}
         onClose={() => setInfoOpen(null)}
