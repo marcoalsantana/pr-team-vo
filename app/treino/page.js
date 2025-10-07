@@ -2,12 +2,13 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import BottomTabs from '../../components/BottomTabs';
 import AccountModal from '../../components/AccountModal';
 import WeekSuggestion from '../../components/WeekSuggestion';
 import SeriesInfoCard from '../../components/SeriesInfoCard';
 import TrainingProgramCard from '../../components/TrainingProgramCard';
+import { WORKOUTS } from '../_data/workouts';
 
 /* ----------------------- THEME ----------------------- */
 const THEME = {
@@ -32,7 +33,6 @@ const THEME = {
 
 /* ----------------------- HELPERS ----------------------- */
 function startOfWeek(d) {
-  // Domingo como início
   const x = new Date(d);
   const day = x.getDay(); // 0..6 (0=Dom)
   x.setHours(0, 0, 0, 0);
@@ -58,20 +58,12 @@ function WeekDots({ weekDates = [], doneMap = {} }) {
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
       {weekDates.map((date, idx) => {
         const key = ymd(date);
-        const letter = doneMap[key]; // 'A' | 'B' | ...
+        const letter = doneMap[key];
         const isDone = !!letter;
         const isToday = new Date().toDateString() === date.toDateString();
         return (
-          <div key={idx} style={{ textAlign: 'center', minWidth: 44 }}>
-            <div
-              style={{
-                fontSize: 12,
-                letterSpacing: 0.5,
-                color: isToday ? '#FFFFFF' : 'rgba(255,255,255,0.7)',
-                fontWeight: isToday ? 800 : 600,
-                padding: '4px 0',
-              }}
-            >
+          <div key={key} style={{ textAlign: 'center', lineHeight: 1.3, width: 36 }}>
+            <div style={{ fontSize: 11, color: THEME.textMute, marginBottom: 2 }}>
               {labels[idx]}
             </div>
             <div
@@ -84,7 +76,7 @@ function WeekDots({ weekDates = [], doneMap = {} }) {
                 border: isDone ? 'none' : '1px solid rgba(255,255,255,0.18)',
                 background: isDone
                   ? 'linear-gradient(180deg,#C1121F,#E04141)'
-                  : 'transparent',
+                  : (isToday ? 'rgba(255,255,255,0.08)' : 'transparent'),
                 boxShadow: isDone ? '0 0 0 2px rgba(193,18,31,.22)' : 'none',
                 display: 'grid',
                 placeItems: 'center',
@@ -92,7 +84,7 @@ function WeekDots({ weekDates = [], doneMap = {} }) {
                 fontSize: 12,
                 lineHeight: 1,
               }}
-              title={isDone ? `Concluído: Treino ${letter}` : 'Não concluído'}
+              title={isDone ? `Concluído: Treino ${letter}` : (isToday ? 'Hoje' : 'Não concluído')}
             >
               {isDone ? '✓' : ''}
             </div>
@@ -192,14 +184,39 @@ function AllWorkoutsModal({ open, onClose, onSelect }) {
   );
 }
 
+// 🔄 Default cards construídos a partir do registro central (WORKOUTS)
+const defaultCards = Object.entries(WORKOUTS).map(([id, v]) => ({
+  id,
+  title: v.title,
+  desc: v.desc,
+  duration: v.duration,
+}));
+
+const STORAGE_CARDS_KEY = 'planotreino-workout-cards';
+
 /* ----------------------- PÁGINA ----------------------- */
 export default function PlanoTreinoPage() {
   const router = useRouter();
+  const search = useSearchParams();
+  const isEdit = search?.get('edit') === '1';
+
   const [openAccount, setOpenAccount] = useState(false);
   const username = 'aluno';
   const [openAll, setOpenAll] = useState(false);
 
   const go = (href) => router.push(href);
+
+  // Cards derivados do registro central (somente para exibição no modo normal)
+  const workoutCards = useMemo(
+    () =>
+      Object.entries(WORKOUTS).map(([key, v]) => ({
+        id: key,
+        title: v.title,
+        desc: v.desc,
+        duration: v.duration,
+      })),
+    []
+  );
 
   // Lê mapa de conclusões (YYYY-MM-DD -> 'A'|'B'...)
   const [doneMap, setDoneMap] = useState({});
@@ -213,15 +230,15 @@ export default function PlanoTreinoPage() {
       }
     };
     load();
-  
+
     const handleFocus = load;
     const handleStorage = (e) => {
       if (e.key === 'completedWorkouts') load();
     };
-  
+
     window.addEventListener('focus', handleFocus);
     window.addEventListener('storage', handleStorage);
-  
+
     return () => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('storage', handleStorage);
@@ -234,7 +251,45 @@ export default function PlanoTreinoPage() {
     return Array.from({ length: 7 }).map((_, i) => addDays(start, i));
   }, []);
 
-  // Mocks visuais
+  // ====== STATE dos cards "Escolha seu treino" (editáveis) ======
+  const [cards, setCards] = useState(defaultCards);
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'ok' | 'err'
+
+  // Carregar do localStorage (rascunho persistente)
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_CARDS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) setCards(parsed);
+      }
+    } catch {}
+  }, []);
+
+  // Ações de edição
+  const updateCard = (idx, patch) => {
+    setCards((prev) => prev.map((c, i) => (i === idx ? { ...c, ...patch } : c)));
+  };
+  const addCard = () => {
+    setCards((prev) => [...prev, { id: '', title: '', desc: '' }]);
+  };
+  const removeCard = (idx) => {
+    setCards((prev) => prev.filter((_, i) => i !== idx));
+  };
+
+  // Salvar manual
+  const handleSaveCards = () => {
+    try {
+      localStorage.setItem(STORAGE_CARDS_KEY, JSON.stringify(cards));
+      setSaveStatus('ok');
+      setTimeout(() => setSaveStatus('idle'), 1200);
+    } catch {
+      setSaveStatus('err');
+      setTimeout(() => setSaveStatus('idle'), 1200);
+    }
+  };
+
+  // Mocks visuais (pode remover depois)
   const faseInicio = '30/09/24';
   const faseFim = '13/10/24';
   const fasePct = 45;
@@ -385,10 +440,9 @@ export default function PlanoTreinoPage() {
           </button>
         </section>
 
-
+        {/* Card de semana sugerida */}
         <WeekSuggestion theme={THEME} />
 
-        
         {/* Sua semana */}
         <section
           style={{
@@ -414,9 +468,10 @@ export default function PlanoTreinoPage() {
           <WeekDots weekDates={weekDates} doneMap={doneMap} />
         </section>
 
+        {/* Explicação das séries */}
         <SeriesInfoCard />
 
-        {/* Escolha seu treino (cards compactos) */}
+        {/* Escolha seu treino */}
         <section
           style={{
             background: THEME.surface,
@@ -428,61 +483,210 @@ export default function PlanoTreinoPage() {
             gap: 12,
           }}
         >
-          <div
-            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-          >
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
             <div style={{ fontSize: 17, fontWeight: 900 }}>Escolha seu treino</div>
-            <span style={{ fontSize: 12, color: THEME.textMute }}>A • B • C • D • E</span>
-          </div>
 
-          <div style={{ display: 'grid', gap: 8 }}>
-            {[
-              { id: 'a', title: 'Treino A', desc: 'Peito / Tríceps / Core' },
-              { id: 'b', title: 'Treino B', desc: 'Pernas / Glúteo' },
-              { id: 'c', title: 'Treino C', desc: 'Costas / Bíceps' },
-              { id: 'd', title: 'Treino D', desc: 'Ombros / Core' },
-              { id: 'e', title: 'Treino E', desc: 'Full Body' },
-            ].map((t) => (
-              <button
-                key={t.id}
-                onClick={() => router.push(`/treino/${t.id}`)}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  background: '#141417',
-                  border: `1px solid ${THEME.stroke}`,
-                  color: THEME.text,
-                  borderRadius: 12,
-                  padding: '10px 12px',
-                  cursor: 'pointer',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 900, fontSize: 14 }}>{t.title}</div>
-                  <div style={{ fontSize: 12, color: THEME.textMute }}>{t.desc}</div>
-                </div>
-                <div
-                  aria-hidden
+            {!isEdit ? (
+              <span style={{ fontSize: 12, color: THEME.textMute }}>
+                {cards.map(c => (c.id || '').toUpperCase()).filter(Boolean).join(' • ') || 'A • B • C • D • E'}
+              </span>
+            ) : (
+              <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                <button
+                  onClick={handleSaveCards}
                   style={{
-                    padding: '6px 10px',
-                    borderRadius: 999,
-                    border: `1px solid ${THEME.stroke}`,
-                    background:
-                      'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-                    fontSize: 12,
-                    color: THEME.textDim,
+                    border: 'none',
+                    borderRadius: 10,
+                    padding: '8px 10px',
+                    fontWeight: 900,
+                    color: '#fff',
+                    cursor: 'pointer',
+                    background: `linear-gradient(180deg, ${THEME.red}, ${THEME.red2})`,
+                    boxShadow: THEME.softShadow,
                   }}
                 >
-                  Abrir ›
-                </div>
-              </button>
-            ))}
+                  Salvar
+                </button>
+                <span style={{
+                  fontSize: 12,
+                  color: saveStatus === 'ok' ? THEME.green : (saveStatus === 'err' ? THEME.red2 : THEME.textMute),
+                }}>
+                  {saveStatus === 'ok' ? '✓ salvo' : saveStatus === 'err' ? 'erro ao salvar' : 'modo edição'}
+                </span>
+              </div>
+            )}
           </div>
+
+          {/* VISUAL normal (lê do registro central) */}
+          {!isEdit && (
+  <div style={{ display: 'grid', gap: 8 }}>
+    {cards
+      .filter((t) => (t.id || '').trim() !== '')
+      .map((t, idx) => {
+        const reg = WORKOUTS[t.id] || {};
+        const normTitle = t.title?.trim() || reg.title || `Treino ${(t.id || '').toUpperCase()}`;
+        const normDuration = (t.duration || reg.duration || '').trim();
+        const normDesc = t.desc?.trim() || reg.desc || '';
+
+        const href = `/treino/${(t.id || '').toLowerCase()}?title=${encodeURIComponent(normTitle)}&duration=${encodeURIComponent(normDuration)}`;
+
+        return (
+          <button
+            key={`${t.id}-${idx}`}
+            onClick={() => router.push(href)}
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: '#141417',
+              border: `1px solid ${THEME.stroke}`,
+              color: THEME.text,
+              borderRadius: 12,
+              padding: '10px 12px',
+              cursor: 'pointer',
+            }}
+          >
+            <div>
+              <div style={{ fontWeight: 900, fontSize: 14 }}>{normTitle}</div>
+              {normDuration && (
+                <div style={{ fontSize: 12, color: THEME.textMute, marginTop: 2 }}>
+                  {normDuration}
+                </div>
+              )}
+              {normDesc && (
+                <div style={{ fontSize: 12, color: THEME.textMute, marginTop: 2 }}>
+                  {normDesc}
+                </div>
+              )}
+            </div>
+
+            <div
+              aria-hidden
+              style={{
+                padding: '6px 10px',
+                borderRadius: 999,
+                border: `1px solid ${THEME.stroke}`,
+                background:'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                fontSize: 12,
+                color: THEME.textDim,
+              }}
+            >
+              Abrir ›
+            </div>
+          </button>
+        );
+      })}
+  </div>
+)}
+
+          {/* EDITOR (?edit=1) - localStorage rascunho (pré-/admin) */}
+          {isEdit && (
+            <div style={{ display:'grid', gap:10 }}>
+              {cards.map((c, idx) => (
+                <div
+                  key={`edit-${idx}`}
+                  style={{
+                    display:'grid',
+                    gap:10,
+                    padding: 12,
+                    borderRadius: 12,
+                    border: `1px solid ${THEME.strokeSoft}`,
+                    background: '#141417',
+                  }}
+                >
+                  {/* linha 1: ID + Título + Remover */}
+                  <div style={{ display:'grid', gridTemplateColumns:'auto 1fr auto', gap:10, alignItems:'center' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                      <label style={{ fontSize:12, color:THEME.textMute }}>Treino:</label>
+                      <select
+                        value={c.id}
+                        onChange={(e) => updateCard(idx, { id: e.target.value })}
+                        style={{
+                          background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+                          borderRadius:8, padding:'6px 8px', fontSize:12, minWidth:70
+                        }}
+                      >
+                        <option value="">—</option>
+                        <option value="a">A</option>
+                        <option value="b">B</option>
+                        <option value="c">C</option>
+                        <option value="d">D</option>
+                        <option value="e">E</option>
+                      </select>
+                    </div>
+
+                    <input
+                      value={c.title}
+                      onChange={(e) => updateCard(idx, { title: e.target.value })}
+                      placeholder="Título (ex: Treino A)"
+                      style={{
+                        width:'100%', padding:'8px 10px', borderRadius:10,
+                        background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+                        fontSize:12
+                      }}
+                    />
+
+                    <button
+                      onClick={() => removeCard(idx)}
+                      style={{
+                        border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '6px 8px',
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                        color: THEME.text, fontSize: 12, fontWeight: 800
+                      }}
+                    >
+                      Excluir
+                    </button>
+                  </div>
+
+                  {/* linha 2: Descrição */}
+                  <input
+                    value={c.desc}
+                    onChange={(e) => updateCard(idx, { desc: e.target.value })}
+                    placeholder="Descrição (ex: Peito / Tríceps / Core)"
+                    style={{
+                      width:'100%', padding:'8px 10px', borderRadius:10,
+                      background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+                      fontSize:12
+                    }}
+                  />
+
+                  {/* linha 3: Duração */}
+<input
+  value={c.duration || ''}
+  onChange={(e) => updateCard(idx, { duration: e.target.value })}
+  placeholder="Duração (ex: ~ 55–65 min)"
+  style={{
+    width:'100%', padding:'8px 10px', borderRadius:10,
+    background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+    fontSize:12
+  }}
+/>
+                </div>
+              ))}
+
+              <button
+                onClick={addCard}
+                style={{
+                  border: `1px solid ${THEME.stroke}`,
+                  borderRadius: 12,
+                  padding: '10px 12px',
+                  background: 'transparent',
+                  color: THEME.text,
+                  fontWeight: 800,
+                  cursor:'pointer'
+                }}
+              >
+                + Adicionar treino
+              </button>
+              <div style={{ fontSize: 11, color: THEME.textMute }}>
+                Dica: clique em <strong>Salvar</strong> no topo deste card para gravar os ajustes.
+              </div>
+            </div>
+          )}
         </section>
 
-        {/* Programa + streak */}
-        <TrainingProgramCard theme={THEME} />
+                {/* Programa + streak (opcional repetir aqui para reforçar sessão) */}
+                <TrainingProgramCard theme={THEME} />
 
 {/* Botão de reset (apenas para debug) */}
 <button
@@ -506,14 +710,15 @@ export default function PlanoTreinoPage() {
 </button>
 </main>
 
-      {/* Modal de Conta */}
-      <AccountModal
-        open={openAccount}
-        onClose={() => setOpenAccount(false)}
-        username={username}
-      />
+{/* Modal de Conta */}
+<AccountModal
+open={openAccount}
+onClose={() => setOpenAccount(false)}
+username={username}
+/>
 
-      <BottomTabs active="treino" onNavigate={(href) => router.push(href)} />
-    </div>
-  );
+{/* Abas inferiores */}
+<BottomTabs active="treino" onNavigate={(href) => router.push(href)} />
+</div>
+);
 }
