@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 const THEME = {
   surface: '#121214',
@@ -23,12 +24,18 @@ const DEFAULTS = [
   { emoji: '⏱️', title: '90min cárdio', subtitle: 'soma da semana, intensidade moderada' },
 ];
 
+// helper para garantir que a UI dependente do ?edit só apareça após montar no cliente
+function useMounted() {
+  const [m, setM] = useState(false);
+  useEffect(() => { setM(true); }, []);
+  return m;
+}
+
 export default function ChallengesCard() {
-  // edit mode via ?edit=1
-  const isEdit = useMemo(() => {
-    if (typeof window === 'undefined') return false;
-    return new URLSearchParams(window.location.search).get('edit') === '1';
-  }, []);
+  const search = useSearchParams();
+  const mounted = useMounted();
+  const urlIsEdit = search?.get('edit') === '1';
+  const canShowEditUI = mounted && urlIsEdit;
 
   const [items, setItems] = useState(DEFAULTS);
 
@@ -50,8 +57,8 @@ export default function ChallengesCard() {
   };
   const reset = () => save(DEFAULTS);
 
-  if (isEdit) {
-    // Editor simples (igual conceito do DailyNote)
+  if (canShowEditUI) {
+    // Editor simples
     return (
       <section
         style={{
@@ -67,7 +74,9 @@ export default function ChallengesCard() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <div>
             <div style={{ fontSize: 16, fontWeight: 900 }}>Desafios PR TEAM (editar)</div>
-            <div style={{ fontSize: 12, color: THEME.textMute, marginTop: 2 }}>modo admin rápido via <code>?edit=1</code></div>
+            <div style={{ fontSize: 12, color: THEME.textMute, marginTop: 2 }}>
+              modo admin rápido via <code>?edit=1</code>
+            </div>
           </div>
           <button
             onClick={reset}
@@ -101,7 +110,14 @@ export default function ChallengesCard() {
                       setItems(nxt);
                     }}
                     placeholder="🔥"
-                    style={{ width: 64 }}
+                    style={{
+                      width: 64,
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      background: '#1a1a1d',
+                      color: THEME.text,
+                      border: `1px solid ${THEME.stroke}`,
+                    }}
                   />
                   <input
                     value={it.title}
@@ -111,7 +127,14 @@ export default function ChallengesCard() {
                       setItems(nxt);
                     }}
                     placeholder="Título"
-                    style={{ flex: 1 }}
+                    style={{
+                      flex: 1,
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      background: '#1a1a1d',
+                      color: THEME.text,
+                      border: `1px solid ${THEME.stroke}`,
+                    }}
                   />
                 </div>
                 <input
@@ -122,6 +145,13 @@ export default function ChallengesCard() {
                     setItems(nxt);
                   }}
                   placeholder="Subtítulo"
+                  style={{
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    background: '#1a1a1d',
+                    color: THEME.text,
+                    border: `1px solid ${THEME.stroke}`,
+                  }}
                 />
               </div>
             </div>
@@ -145,7 +175,7 @@ export default function ChallengesCard() {
     );
   }
 
-  // Visualização (persistente)
+  // Visualização (persistente) — SSR-safe
   return (
     <section
       style={{
