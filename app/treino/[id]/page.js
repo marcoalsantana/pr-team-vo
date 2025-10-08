@@ -31,6 +31,86 @@ function ymd(d) {
   return `${yy}-${mm}-${dd}`;
 }
 
+// Histórico de cargas usado pela página /evolucao
+const STORAGE_LIFTS = 'history-lifts-v1';
+
+// Salva no histórico as cargas de cada exercício do treino finalizado
+function appendLiftsHistory({ plan, progress, workoutId }) {
+  try {
+    const raw = localStorage.getItem(STORAGE_LIFTS);
+    const arr = raw ? JSON.parse(raw) : [];
+    const dateISO = new Date().toISOString();
+
+    for (const ex of plan.exercises || []) {
+      const st = progress[ex.key];
+      if (!st || !Array.isArray(st.sets)) continue;
+
+      // Extrai pesos numéricos de todas as séries/blocos marcados
+      const all = [];
+      st.sets.forEach((serie) => {
+        (serie.weights || []).forEach((w) => {
+          const num = Number(String(w).replace(',', '.'));
+          if (!isNaN(num) && num > 0) all.push(num);
+        });
+      });
+      if (!all.length) continue;
+
+      const max = Math.max(...all);
+
+      arr.push({
+        dateISO,
+        workoutId: String(workoutId || '').toUpperCase(), // A/B/C/D/E
+        exerciseKey: ex.key,
+        exerciseName: ex.name || 'Exercício',
+        weights: all,
+        max,
+      });
+    }
+
+    // Mantém no máximo 1000 registros recentes
+    localStorage.setItem(STORAGE_LIFTS, JSON.stringify(arr.slice(-1000)));
+  } catch {}
+}
+
+/* ====== Toast (PRFIT) ====== */
+function Toast({ text, visible }) {
+  if (!visible) return null;
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        left: '50%',
+        bottom: '18%',
+        transform: 'translateX(-50%)',
+        zIndex: 1300,
+        pointerEvents: 'none',
+        transition: 'opacity 240ms ease',
+        opacity: visible ? 1 : 0,
+      }}
+      aria-live="polite"
+    >
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          padding: '12px 14px',
+          borderRadius: 12,
+          border: '1px solid rgba(255,255,255,0.12)',
+          background: 'rgba(25,25,28,0.88)',
+          backdropFilter: 'blur(6px)',
+          color: '#fff',
+          fontWeight: 900,
+          boxShadow: '0 10px 22px rgba(0,0,0,0.35)',
+        }}
+      >
+        <span>✅</span>
+        <span style={{ fontSize: 13 }}>{text}</span>
+      </div>
+    </div>
+  );
+}
+
 /* Tipos de série (cores + textos do “i”) */
 const SERIES_INFO = {
   red: {
@@ -205,11 +285,14 @@ const buildHref = (patch) => {
   // estado do plano (editável em ?edit=1)
   const [plan, setPlan] = useState(() => {
     const base = getDefaultPlan(id);
+  
     // Se vieram overrides pela URL (do card), refletir no plano também
     if (qpTitle) base.title = qpTitle;
     if (qpDuration) base.estTime = qpDuration;
     return base;
   });
+
+  const [toast, setToast] = useState(null); // string | null
 
   // chave do rascunho para este treino
   const draftKey = React.useMemo(() => `workout-plan-draft-${id}`, [id]);
@@ -430,6 +513,45 @@ const toggleSetDone = (exKey, setIdx) => {
   });
 };
 
+// quais exercícios estão recolhidos (card fechado)
+const [collapsed, setCollapsed] = useState({}); // { [exKey]: true }
+
+// qual exercício está comemorando agora
+const [celebrate, setCelebrate] = useState(null); // exKey ou null
+
+// guarda o status "concluído" anterior pra detectar a virada false -> true
+const prevDoneRef = React.useRef({});
+
+// quando progress muda, verifica se algum exercício acabou de ser concluído
+useEffect(() => {
+  for (const ex of plan.exercises || []) {
+    const key = ex.key;
+    const st = progress[key];
+    const totalSets = (ex.sets || []).length;
+    const doneNow =
+      totalSets > 0 &&
+      st &&
+      Array.isArray(st.sets) &&
+      st.sets.length === totalSets &&
+      st.sets.every((s) => s.done);
+
+    const donePrev = !!prevDoneRef.current[key];
+
+    // virou concluído agora? dispara animação e recolhe
+    if (!donePrev && doneNow) {
+      setCelebrate(key);
+      // some o banner de celebração depois de 900ms
+      setTimeout(() => setCelebrate(null), 2500);
+      // recolhe o card depois da celebração
+      setTimeout(() => {
+        setCollapsed((c) => ({ ...c, [key]: true }));
+      }, 2000);
+    }
+
+    prevDoneRef.current[key] = doneNow;
+  }
+}, [progress, plan]);
+
   /* ====== All done? ====== */
   const allDone = useMemo(() => {
     const pl = plan.exercises || [];
@@ -605,298 +727,392 @@ const toggleSetDone = (exKey, setIdx) => {
   
         {/* Conteúdo */}
         <main style={{ padding: '14px 14px 80px', maxWidth: 560, margin: '0 auto', display: 'grid', gap: 12 }}>
-          {/* EXERCÍCIOS */}
-          {plan.exercises.map((ex, exIdx) => {
-            const st = progress[ex.key] || { sets: [] };
-            return (
-              <section
-                key={ex.key}
-                style={{
-                  background: THEME.surface,
-                  border: `1px solid ${THEME.stroke}`,
-                  borderRadius: 16,
-                  padding: 14,
-                  boxShadow: THEME.shadow,
-                  display: 'grid',
-                  gap: 12,
-                }}
-              >
-                {/* Cabeçalho do exercício */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    {!isEdit ? (
-                      <>
-                        <div style={{ fontSize: 16, fontWeight: 900 }}>{ex.name}</div>
-                        <div style={{ fontSize: 12, color: THEME.textMute }}>{ex.hint}</div>
-                      </>
-                    ) : (
-                      <div style={{ display:'grid', gap:8 }}>
-                        <div style={{ display:'grid', gap:6 }}>
-                          <label style={{ fontSize:12, color:THEME.textMute }}>Nome do exercício</label>
-                          <input
-                            value={ex.name}
-                            onChange={(e)=>updateExercise(exIdx, { name: e.target.value })}
-                            style={{
-                              padding:'10px 12px', borderRadius:10, background:'#1a1a1d', color:THEME.text,
-                              border:`1px solid ${THEME.stroke}`, fontWeight:800
-                            }}
-                          />
-                        </div>
-                        <div style={{ display:'grid', gap:6 }}>
-                          <label style={{ fontSize:12, color:THEME.textMute }}>Vídeo (YouTube embed)</label>
-                          <input
-                            value={ex.video}
-                            onChange={(e)=>updateExercise(exIdx, { video: e.target.value })}
-                            placeholder="https://www.youtube.com/embed/ID"
-                            style={{
-                              padding:'10px 12px', borderRadius:10, background:'#1a1a1d', color:THEME.text,
-                              border:`1px solid ${THEME.stroke}`
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-  
-                  {!isEdit ? (
-                    <button
-                      onClick={() => setVideoOpen(ex.key)}
-                      style={{
-                        alignSelf: 'start',
-                        padding: '8px 10px', borderRadius: 10,
-                        border: `1px solid ${THEME.stroke}`,
-                        background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-                        color: THEME.text, fontSize: 12, fontWeight: 800,
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      Ver vídeo ›
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => removeExercise(exIdx)}
-                      style={{
-                        alignSelf:'start',
-                        padding:'8px 10px', borderRadius:10,
-                        border:`1px solid ${THEME.stroke}`,
-                        background:'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-                        color:THEME.text, fontSize:12, fontWeight:800, whiteSpace:'nowrap'
-                      }}
-                    >
-                      Excluir exercício
-                    </button>
-                  )}
-                </div>
-  
-                {/* SÉRIES */}
-                <div style={{ display: 'grid', gap: 8 }}>
-                  {(ex.sets || []).map((s, setIdx) => {
-                    const colorInfo = SERIES_INFO[s.type] || SERIES_INFO.blue;
-                    const done = st.sets?.[setIdx]?.done || false;
-                    const weights = st.sets?.[setIdx]?.weights || [];
-                    const blocks = Math.max(1, Number(s.blocks || 1));
-  
-                    return (
-                      <div
-                        key={setIdx}
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr auto',
-                          gap: 10,
-                          padding: '10px 12px',
-                          borderRadius: 12,
-                          border: `1px solid ${THEME.strokeSoft}`,
-                          background: '#141417',
-                        }}
-                      >
-                        {/* Lado esquerdo */}
-                        <div style={{ display:'grid', gap:8 }}>
-                          <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                            <span style={{
-                              width: 12, height: 12, borderRadius: 4,
-                              background: colorInfo.chipBg,
-                              border: '1px solid rgba(255,255,255,.15)'
-                            }}/>
-                            <div style={{ fontSize: 13, fontWeight: 800 }}>Série {setIdx + 1}</div>
-  
-                            {!isEdit && (
-                              <button
-                                onClick={() => setInfoOpen(s.type)}
-                                title="Instruções da série"
-                                style={{
-                                  border: `1px solid ${THEME.stroke}`,
-                                  borderRadius: 8,
-                                  padding: '2px 6px',
-                                  background: 'linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,0))',
-                                  color: THEME.textMute,
-                                  fontSize: 12,
-                                }}
-                              >
-                                i
-                              </button>
-                            )}
-                          </div>
-  
-                          <div style={{ fontSize: 12, color: THEME.textMute }}>
-                            {isEdit ? (
-                              <div style={{ display:'grid', gridTemplateColumns:'auto 1fr auto', gap:10, alignItems:'center' }}>
-                                <div style={{ display:'flex', alignItems:'center', gap:6 }}>
-                                  <span style={{
-                                    width: 14, height: 14, borderRadius: 4,
-                                    background: (SERIES_INFO[s.type]?.chipBg) || SERIES_INFO.blue.chipBg,
-                                    border: '1px solid rgba(255,255,255,.15)'
-                                  }} />
-                                  <select
-                                    value={s.type}
-                                    onChange={(e) => updateSeries(exIdx, setIdx, { type: e.target.value })}
-                                    style={{
-                                      background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
-                                      borderRadius:8, padding:'6px 8px', fontSize:12
-                                    }}
-                                  >
-                                    {COLOR_OPTIONS.map((c) => (
-                                      <option key={c.key} value={c.key}>{c.label}</option>
-                                    ))}
-                                  </select>
-                                </div>
-  
-                                <input
-                                  value={s.repsTxt}
-                                  onChange={(e) => updateSeries(exIdx, setIdx, { repsTxt: e.target.value })}
-                                  placeholder="Repetições (ex: 2 × 6 a 8)"
-                                  style={{
-                                    width:'100%', padding:'8px 10px', borderRadius:10,
-                                    background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
-                                    fontSize:12
-                                  }}
-                                />
-  
-                                <button
-                                  onClick={() => removeSeries(exIdx, setIdx)}
-                                  style={{
-                                    border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '6px 8px',
-                                    background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-                                    color: THEME.text, fontSize: 12, fontWeight: 800, justifySelf:'end'
-                                  }}
-                                >
-                                  Excluir
-                                </button>
-                              </div>
-                            ) : (
-                              s.repsTxt
-                            )}
-                          </div>
-  
-                          <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
-                            {Array.from({ length: blocks }).map((_, bi) => (
-                              <div key={bi} style={{ display:'flex', alignItems:'center', gap:6 }}>
-                                <label style={{ fontSize: 11, color: THEME.textMute }}>Bloco {bi + 1}:</label>
-                                <input
-                                  type="number"
-                                  inputMode="numeric"
-                                  placeholder="kg"
-                                  value={weights[bi] ?? ''}
-                                  onChange={(e)=>setWeight(ex.key, setIdx, bi, e.target.value)}
-                                  style={{
-                                    width: 86,
-                                    padding: '7px 9px', borderRadius: 10,
-                                    background: '#1a1a1d', color: THEME.text,
-                                    border: `1px solid ${THEME.stroke}`,
-                                    textAlign: 'center',
-                                  }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-  
-                          {isEdit && (
-                            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
-                              <span style={{ fontSize:12, color:THEME.textMute }}>Blocos de carga:</span>
-                              <button
-                                onClick={()=>addBlock(exIdx, setIdx)}
-                                style={{
-                                  border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '6px 8px',
-                                  background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-                                  color: THEME.text, fontSize: 12, fontWeight: 800
-                                }}
-                              >
-                                + bloco
-                              </button>
-                              <button
-                                onClick={()=>removeBlock(exIdx, setIdx)}
-                                style={{
-                                  border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '6px 8px',
-                                  background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-                                  color: THEME.text, fontSize: 12, fontWeight: 800
-                                }}
-                              >
-                                – bloco
-                              </button>
-                              <span style={{ fontSize:12, color:THEME.textMute }}>atual: {blocks}</span>
-                            </div>
-                          )}
-                        </div>
-  
-                        {/* Lado direito: check da série */}
-                        <div style={{ display:'grid', alignContent:'start', justifyItems:'end' }}>
-                          <button
-                            onClick={() => toggleSetDone(ex.key, setIdx)}
-                            aria-pressed={done}
-                            title={done ? 'Desmarcar série' : 'Marcar série'}
-                            style={{
-                              width: 34, height: 34, borderRadius: 8,
-                              border: `1px solid ${THEME.stroke}`,
-                              background: done
-                                ? `linear-gradient(180deg, ${THEME.red}, ${THEME.red2})`
-                                : '#1b1b1e',
-                              color: '#fff', fontWeight: 900,
-                              display: 'grid', placeItems: 'center',
-                            }}
-                          >
-                            {done ? '✓' : ''}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-  
-                {/* Adicionar série (apenas no edit) */}
-                {isEdit && (
-                  <button
-                    onClick={() => addSeries(exIdx)}
-                    style={{
-                      marginTop: 2,
-                      border: `1px solid ${THEME.stroke}`,
-                      borderRadius: 12,
-                      padding: '10px 12px',
-                      background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-                      color: THEME.text, fontWeight: 800, fontSize: 12, width:'100%'
-                    }}
-                  >
-                    + adicionar série
-                  </button>
-                )}
-              </section>
-            );
-          })}
+  {/* EXERCÍCIOS */}
+  {plan.exercises.map((ex, exIdx) => {
+    const st = progress[ex.key] || { sets: [] };
+    const isCollapsed = !!collapsed[ex.key];
 
-                  {/* Adicionar exercício (apenas no edit) */}
-        {isEdit && (
+    /* ---------- CARD RECOLHIDO (após concluir todas as séries) ---------- */
+    if (isCollapsed) {
+      return (
+        <section
+          key={ex.key}
+          style={{
+            background: '#131315',
+            border: `1px solid ${THEME.stroke}`,
+            borderRadius: 16,
+            padding: 12,
+            boxShadow: THEME.shadow,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+          }}
+        >
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div
+              aria-hidden
+              style={{
+                width: 28, height: 28, borderRadius: 8,
+                background: `linear-gradient(180deg, ${THEME.red}, ${THEME.red2})`,
+                color: '#fff', display:'grid', placeItems:'center',
+                fontWeight: 900, border:`1px solid ${THEME.stroke}`
+              }}
+            >
+              ✓
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 900 }}>{ex.name}</div>
+              <div style={{ fontSize: 12, color: THEME.textMute }}>Exercício concluído</div>
+            </div>
+          </div>
+
           <button
-            onClick={addExercise}
+            onClick={() => setCollapsed((c) => ({ ...c, [ex.key]: false }))}
             style={{
-              border: `1px solid ${THEME.stroke}`,
-              borderRadius: 12,
-              padding: '12px',
-              background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
-              color: THEME.text, fontWeight: 900, fontSize: 14
+              alignSelf:'start',
+              padding:'8px 10px', borderRadius:10,
+              border:`1px solid ${THEME.stroke}`,
+              background:'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+              color:THEME.text, fontSize:12, fontWeight:800, whiteSpace:'nowrap'
             }}
           >
-            + adicionar exercício
+            Reabrir
+          </button>
+        </section>
+      );
+    }
+
+    /* ---------- CARD NORMAL (em execução ou não concluído) ---------- */
+    return (
+      <section
+        key={ex.key}
+        style={{
+          position: 'relative', // overlay de celebração
+          background: THEME.surface,
+          border: `1px solid ${THEME.stroke}`,
+          borderRadius: 16,
+          padding: 14,
+          boxShadow: THEME.shadow,
+          display: 'grid',
+          gap: 12,
+        }}
+      >
+        {/* 🎉 Overlay de celebração quando concluir todas as séries */}
+        <div
+          aria-hidden
+          style={{
+            pointerEvents: 'none',
+            position: 'absolute',
+            inset: 0,
+            display: 'grid',
+            placeItems: 'center',
+            borderRadius: 16,
+            background:
+              celebrate === ex.key
+                ? 'rgba(0,0,0,0.40)'
+                : 'rgba(0,0,0,0)',
+            opacity: celebrate === ex.key ? 1 : 0,
+            transition: 'opacity .25s ease, background-color .25s ease',
+          }}
+        >
+          {celebrate === ex.key && (
+            <div
+              style={{
+                background: 'linear-gradient(180deg, #1a1a1d, #111)',
+                border: `1px solid ${THEME.stroke}`,
+                boxShadow: THEME.shadow,
+                color: THEME.text,
+                padding: '10px 14px',
+                borderRadius: 12,
+                fontWeight: 900,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🎉</span>
+              Exercício concluído!
+            </div>
+          )}
+        </div>
+
+        {/* ===== Cabeçalho do exercício (igual ao seu) ===== */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+          <div style={{ flex: 1 }}>
+            {!isEdit ? (
+              <>
+                <div style={{ fontSize: 16, fontWeight: 900 }}>{ex.name}</div>
+                <div style={{ fontSize: 12, color: THEME.textMute }}>{ex.hint}</div>
+              </>
+            ) : (
+              <div style={{ display:'grid', gap:8 }}>
+                <div style={{ display:'grid', gap:6 }}>
+                  <label style={{ fontSize:12, color:THEME.textMute }}>Nome do exercício</label>
+                  <input
+                    value={ex.name}
+                    onChange={(e)=>updateExercise(exIdx, { name: e.target.value })}
+                    style={{
+                      padding:'10px 12px', borderRadius:10, background:'#1a1a1d', color:THEME.text,
+                      border:`1px solid ${THEME.stroke}`, fontWeight:800
+                    }}
+                  />
+                </div>
+                <div style={{ display:'grid', gap:6 }}>
+                  <label style={{ fontSize:12, color:THEME.textMute }}>Vídeo (YouTube embed)</label>
+                  <input
+                    value={ex.video}
+                    onChange={(e)=>updateExercise(exIdx, { video: e.target.value })}
+                    placeholder="https://www.youtube.com/embed/ID"
+                    style={{
+                      padding:'10px 12px', borderRadius:10, background:'#1a1a1d', color:THEME.text,
+                      border:`1px solid ${THEME.stroke}`
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {!isEdit ? (
+            <button
+              onClick={() => setVideoOpen(ex.key)}
+              style={{
+                alignSelf: 'start',
+                padding: '8px 10px', borderRadius: 10,
+                border: `1px solid ${THEME.stroke}`,
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                color: THEME.text, fontSize: 12, fontWeight: 800,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Ver vídeo ›
+            </button>
+          ) : (
+            <button
+              onClick={() => removeExercise(exIdx)}
+              style={{
+                alignSelf:'start',
+                padding:'8px 10px', borderRadius:10,
+                border:`1px solid ${THEME.stroke}`,
+                background:'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                color:THEME.text, fontSize:12, fontWeight:800, whiteSpace:'nowrap'
+              }}
+            >
+              Excluir exercício
+            </button>
+          )}
+        </div>
+
+        {/* ===== SÉRIES (igual ao seu, sem mudanças) ===== */}
+        <div style={{ display: 'grid', gap: 8 }}>
+          {(ex.sets || []).map((s, setIdx) => {
+            const colorInfo = SERIES_INFO[s.type] || SERIES_INFO.blue;
+            const done = st.sets?.[setIdx]?.done || false;
+            const weights = st.sets?.[setIdx]?.weights || [];
+            const blocks = Math.max(1, Number(s.blocks || 1));
+
+            return (
+              <div
+                key={setIdx}
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr auto',
+                  gap: 10,
+                  padding: '10px 12px',
+                  borderRadius: 12,
+                  border: `1px solid ${THEME.strokeSoft}`,
+                  background: '#141417',
+                }}
+              >
+                {/* Lado esquerdo */}
+                <div style={{ display:'grid', gap:8 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                    <span style={{
+                      width: 12, height: 12, borderRadius: 4,
+                      background: colorInfo.chipBg,
+                      border: '1px solid rgba(255,255,255,.15)'
+                    }}/>
+                    <div style={{ fontSize: 13, fontWeight: 800 }}>Série {setIdx + 1}</div>
+
+                    {!isEdit && (
+                      <button
+                        onClick={() => setInfoOpen(s.type)}
+                        title="Instruções da série"
+                        style={{
+                          border: `1px solid ${THEME.stroke}`,
+                          borderRadius: 8,
+                          padding: '2px 6px',
+                          background: 'linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,0))',
+                          color: THEME.textMute,
+                          fontSize: 12,
+                        }}
+                      >
+                        i
+                      </button>
+                    )}
+                  </div>
+
+                  <div style={{ fontSize: 12, color: THEME.textMute }}>
+                    {isEdit ? (
+                      <div style={{ display:'grid', gridTemplateColumns:'auto 1fr auto', gap:10, alignItems:'center' }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+                          <span style={{
+                            width: 14, height: 14, borderRadius: 4,
+                            background: (SERIES_INFO[s.type]?.chipBg) || SERIES_INFO.blue.chipBg,
+                            border: '1px solid rgba(255,255,255,.15)'
+                          }} />
+                          <select
+                            value={s.type}
+                            onChange={(e) => updateSeries(exIdx, setIdx, { type: e.target.value })}
+                            style={{
+                              background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+                              borderRadius:8, padding:'6px 8px', fontSize:12
+                            }}
+                          >
+                            {COLOR_OPTIONS.map((c) => (
+                              <option key={c.key} value={c.key}>{c.label}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <input
+                          value={s.repsTxt}
+                          onChange={(e) => updateSeries(exIdx, setIdx, { repsTxt: e.target.value })}
+                          placeholder="Repetições (ex: 2 × 6 a 8)"
+                          style={{
+                            width:'100%', padding:'8px 10px', borderRadius:10,
+                            background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+                            fontSize:12
+                          }}
+                        />
+
+                        <button
+                          onClick={() => removeSeries(exIdx, setIdx)}
+                          style={{
+                            border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '6px 8px',
+                            background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                            color: THEME.text, fontSize: 12, fontWeight: 800, justifySelf:'end'
+                          }}
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    ) : (
+                      s.repsTxt
+                    )}
+                  </div>
+
+                  <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+                    {Array.from({ length: blocks }).map((_, bi) => (
+                      <div key={bi} style={{ display:'flex', alignItems:'center', gap:6 }}>
+                        <label style={{ fontSize: 11, color: THEME.textMute }}>Bloco {bi + 1}:</label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="kg"
+                          value={weights[bi] ?? ''}
+                          onChange={(e)=>setWeight(ex.key, setIdx, bi, e.target.value)}
+                          style={{
+                            width: 86,
+                            padding: '7px 9px', borderRadius: 10,
+                            background: '#1a1a1d', color: THEME.text,
+                            border: `1px solid ${THEME.stroke}`,
+                            textAlign: 'center',
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  {isEdit && (
+                    <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+                      <span style={{ fontSize:12, color:THEME.textMute }}>Blocos de carga:</span>
+                      <button
+                        onClick={()=>addBlock(exIdx, setIdx)}
+                        style={{
+                          border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '6px 8px',
+                          background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                          color: THEME.text, fontSize: 12, fontWeight: 800
+                        }}
+                      >
+                        + bloco
+                      </button>
+                      <button
+                        onClick={()=>removeBlock(exIdx, setIdx)}
+                        style={{
+                          border: `1px solid ${THEME.stroke}`, borderRadius: 10, padding: '6px 8px',
+                          background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+                          color: THEME.text, fontSize: 12, fontWeight: 800
+                        }}
+                      >
+                        – bloco
+                      </button>
+                      <span style={{ fontSize:12, color:THEME.textMute }}>atual: {blocks}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Lado direito: check da série */}
+                <div style={{ display:'grid', alignContent:'start', justifyItems:'end' }}>
+                  <button
+                    onClick={() => toggleSetDone(ex.key, setIdx)}
+                    aria-pressed={done}
+                    title={done ? 'Desmarcar série' : 'Marcar série'}
+                    style={{
+                      width: 34, height: 34, borderRadius: 8,
+                      border: `1px solid ${THEME.stroke}`,
+                      background: done
+                        ? `linear-gradient(180deg, ${THEME.red}, ${THEME.red2})`
+                        : '#1b1b1e',
+                      color: '#fff', fontWeight: 900,
+                      display: 'grid', placeItems: 'center',
+                    }}
+                  >
+                    {done ? '✓' : ''}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Adicionar série (apenas no edit) */}
+        {isEdit && (
+          <button
+            onClick={() => addSeries(exIdx)}
+            style={{
+              marginTop: 2,
+              border: `1px solid ${THEME.stroke}`,
+              borderRadius: 12,
+              padding: '10px 12px',
+              background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+              color: THEME.text, fontWeight: 800, fontSize: 12, width:'100%'
+            }}
+          >
+            + adicionar série
           </button>
         )}
-      </main>
+      </section>
+    );
+  })}
+
+  {/* Adicionar exercício (apenas no edit) */}
+  {isEdit && (
+    <button
+      onClick={addExercise}
+      style={{
+        border: `1px solid ${THEME.stroke}`,
+        borderRadius: 12,
+        padding: '12px',
+        background: 'linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0))',
+        color: THEME.text, fontWeight: 900, fontSize: 14
+      }}
+    >
+      + adicionar exercício
+    </button>
+  )}
+</main>
 
       {/* CTA fixo para finalizar */}
       {!isEdit && (
@@ -917,8 +1133,22 @@ const toggleSetDone = (exKey, setIdx) => {
                 const map = raw ? JSON.parse(raw) : {};
                 map[dateKey] = (id || 'a').toUpperCase(); // salva A/B/C/D/E
                 localStorage.setItem('completedWorkouts', JSON.stringify(map));
-              } catch {}
-              router.replace('/treino'); // volta para plano de treino
+            
+                // grava histórico de cargas (para /evolucao)
+                appendLiftsHistory({ plan, progress, workoutId: id });
+            
+                // TOAST bonito + pequeno delay pra UX premium
+                setToast('Progresso salvo com sucesso!');
+                setTimeout(() => setToast(null), 1500);
+            
+                // dá tempo do usuário ver o toast (ajuste fino se quiser)
+                setTimeout(() => {
+                  router.replace('/treino');
+                }, 650);
+              } catch {
+                // se quiser, pode exibir um toast de erro aqui também
+                router.replace('/treino');
+              }
             }}
             style={{
               width: '100%', maxWidth: 560,
@@ -954,6 +1184,9 @@ const toggleSetDone = (exKey, setIdx) => {
         onClose={() => setInfoOpen(null)}
         infoKey={infoOpen}
       />
+
+       <Toast text={toast} visible={!!toast} />
+      
     </div>
   );
 }
