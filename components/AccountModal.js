@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 const THEME = {
   surface: '#121214',
@@ -17,6 +18,8 @@ const THEME = {
 const STORAGE_PROFILE = 'student-profile-v1'; // {name,birthISO,heightCm,goal,email}
 
 export default function AccountModal({ open, onClose, username }) {
+  const router = useRouter();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
 
@@ -33,12 +36,23 @@ export default function AccountModal({ open, onClose, username }) {
     }
   }, [open, username]);
 
-  const handleSave = () => {
+  const handleSave = (e) => {
+    e?.preventDefault?.();
+
+    const safeName = (name || '').trim() || 'aluno';
+    const safeEmail = (email || '').trim();
+
     try {
       const prev = JSON.parse(localStorage.getItem(STORAGE_PROFILE) || '{}');
-      const next = { ...prev, name: (name || '').trim(), email: (email || '').trim() };
+      const next = { ...prev, name: safeName, email: safeEmail };
       localStorage.setItem(STORAGE_PROFILE, JSON.stringify(next));
+
+      // login simples no client (opcional, mas útil pra gates leves)
+      try { localStorage.setItem('isLogged', '1'); } catch {}
+
+      // fecha modal e vai pra /inicio
       onClose?.();
+      router.push('/inicio');
     } catch {
       // mesmo que falhe, fecha pra não travar UX
       onClose?.();
@@ -64,23 +78,25 @@ export default function AccountModal({ open, onClose, username }) {
           border: `1px solid ${THEME.stroke}`, borderRadius: 16, padding: 16,
         }}
       >
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 10 }}>
-          <div style={{ fontSize: 18, fontWeight: 900 }}>Sua conta</div>
-          <button
-            onClick={onClose}
-            style={{ background:'transparent', border:'none', color:THEME.textDim, fontSize:22, cursor:'pointer' }}
-          >
-            ×
-          </button>
-        </div>
+        <form onSubmit={handleSave} style={{ display: 'grid', gap: 10 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 4 }}>
+            <div style={{ fontSize: 18, fontWeight: 900 }}>Sua conta</div>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{ background:'transparent', border:'none', color:THEME.textDim, fontSize:22, cursor:'pointer' }}
+            >
+              ×
+            </button>
+          </div>
 
-        <div style={{ display:'grid', gap:10 }}>
           <div style={{ display:'grid', gap:6 }}>
             <label style={{ fontSize:12, color:THEME.textMute }}>Nome</label>
             <input
               value={name}
               onChange={(e)=>setName(e.target.value)}
               placeholder="Seu nome"
+              autoComplete="name"
               style={{
                 width:'100%', padding:'10px 12px', borderRadius:10,
                 background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
@@ -94,6 +110,7 @@ export default function AccountModal({ open, onClose, username }) {
               value={email}
               onChange={(e)=>setEmail(e.target.value)}
               placeholder="voce@exemplo.com"
+              autoComplete="email"
               style={{
                 width:'100%', padding:'10px 12px', borderRadius:10,
                 background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
@@ -102,7 +119,7 @@ export default function AccountModal({ open, onClose, username }) {
           </div>
 
           <button
-            onClick={handleSave}
+            type="submit"
             style={{
               marginTop: 6,
               border:'none', borderRadius:12, padding:'10px 14px',
@@ -116,7 +133,7 @@ export default function AccountModal({ open, onClose, username }) {
           <div style={{ fontSize:11, color:THEME.textMute }}>
             *Os dados ficam salvos só neste dispositivo (localStorage).
           </div>
-        </div>
+        </form>
       </div>
     </div>
   );
