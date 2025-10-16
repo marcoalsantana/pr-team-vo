@@ -52,7 +52,7 @@ export default function AccountModal({ open, onClose, username }) {
 
       // fecha modal e vai pra /inicio
       onClose?.();
-      router.push('/inicio');
+window.location.href = '/inicio'; // recarrega a página inteira, sem prefetch
     } catch {
       // mesmo que falhe, fecha pra não travar UX
       onClose?.();
