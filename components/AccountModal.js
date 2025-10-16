@@ -1,84 +1,122 @@
+// components/AccountModal.js
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { supabase } from '../lib/supabase';
+import { useEffect, useState } from 'react';
 
 const THEME = {
   surface: '#121214',
-  stroke: 'rgba(255,255,255,0.12)',
+  stroke: 'rgba(255,255,255,0.08)',
+  strokeSoft: 'rgba(255,255,255,0.06)',
   text: '#FFFFFF',
-  textDim: '#CFCFD2',
   textMute: '#9B9BA1',
+  textDim: '#CFCFD2',
   red: '#C1121F',
   red2: '#E04141',
 };
 
-export default function AccountModal({ open, onClose, username = 'aluno' }) {
-  const router = useRouter();
-  if (!open) return null;
+const STORAGE_PROFILE = 'student-profile-v1'; // {name,birthISO,heightCm,goal,email}
 
-  async function handleLogout() {
+export default function AccountModal({ open, onClose, username }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+
+  // carrega do storage quando abrir
+  useEffect(() => {
+    if (!open) return;
     try {
-      await supabase.auth.signOut();
-      localStorage.removeItem('loggedIn');
-    } catch (e) {
-      console.error(e);
-    } finally {
-      onClose?.();
-      router.replace('/'); // sua tela de login (app/page.js)
+      const p = JSON.parse(localStorage.getItem(STORAGE_PROFILE) || 'null');
+      if (p?.name) setName(p.name); else setName(username || '');
+      if (p?.email) setEmail(p.email); else setEmail('');
+    } catch {
+      setName(username || '');
+      setEmail('');
     }
-  }
+  }, [open, username]);
+
+  const handleSave = () => {
+    try {
+      const prev = JSON.parse(localStorage.getItem(STORAGE_PROFILE) || '{}');
+      const next = { ...prev, name: (name || '').trim(), email: (email || '').trim() };
+      localStorage.setItem(STORAGE_PROFILE, JSON.stringify(next));
+      onClose?.();
+    } catch {
+      // mesmo que falhe, fecha pra não travar UX
+      onClose?.();
+    }
+  };
+
+  if (!open) return null;
 
   return (
     <div
       onClick={onClose}
       style={{
-        position: 'fixed', inset: 0, zIndex: 1000,
-        display: 'flex', justifyContent: 'center', alignItems: 'center',
+        position: 'fixed', inset: 0, zIndex: 2000,
         background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
+        display: 'grid', placeItems: 'center', padding: 16,
       }}
     >
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: '92%', maxWidth: 420, background: THEME.surface,
-          border: `1px solid ${THEME.stroke}`, borderRadius: 16,
-          boxShadow: '0 12px 28px rgba(0,0,0,0.35)', color: THEME.text, padding: 16,
+          width: '100%', maxWidth: 420,
+          background: THEME.surface, color: THEME.text,
+          border: `1px solid ${THEME.stroke}`, borderRadius: 16, padding: 16,
         }}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-          <div style={{ fontSize: 16, fontWeight: 800 }}>Conta</div>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 10 }}>
+          <div style={{ fontSize: 18, fontWeight: 900 }}>Sua conta</div>
           <button
-            aria-label="Fechar" onClick={onClose}
-            style={{ background: 'transparent', border: 'none', color: THEME.textDim, fontSize: 20, cursor: 'pointer' }}
-          >×</button>
+            onClick={onClose}
+            style={{ background:'transparent', border:'none', color:THEME.textDim, fontSize:22, cursor:'pointer' }}
+          >
+            ×
+          </button>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-          <div
+        <div style={{ display:'grid', gap:10 }}>
+          <div style={{ display:'grid', gap:6 }}>
+            <label style={{ fontSize:12, color:THEME.textMute }}>Nome</label>
+            <input
+              value={name}
+              onChange={(e)=>setName(e.target.value)}
+              placeholder="Seu nome"
+              style={{
+                width:'100%', padding:'10px 12px', borderRadius:10,
+                background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+              }}
+            />
+          </div>
+
+          <div style={{ display:'grid', gap:6 }}>
+            <label style={{ fontSize:12, color:THEME.textMute }}>E-mail (opcional)</label>
+            <input
+              value={email}
+              onChange={(e)=>setEmail(e.target.value)}
+              placeholder="voce@exemplo.com"
+              style={{
+                width:'100%', padding:'10px 12px', borderRadius:10,
+                background:'#1a1a1d', color:THEME.text, border:`1px solid ${THEME.stroke}`,
+              }}
+            />
+          </div>
+
+          <button
+            onClick={handleSave}
             style={{
-              width: 46, height: 46, borderRadius: 10, background: '#17171A',
-              border: `1px solid ${THEME.stroke}`, display: 'grid', placeItems: 'center'
+              marginTop: 6,
+              border:'none', borderRadius:12, padding:'10px 14px',
+              fontWeight:900, color:'#fff', cursor:'pointer',
+              background:'linear-gradient(180deg,#C1121F,#E04141)',
             }}
-          >👤</div>
-          <div>
-            <div style={{ fontWeight: 900 }}>{username}</div>
-            <div style={{ fontSize: 12, color: THEME.textMute }}>Conta ativa</div>
+          >
+            Salvar
+          </button>
+
+          <div style={{ fontSize:11, color:THEME.textMute }}>
+            *Os dados ficam salvos só neste dispositivo (localStorage).
           </div>
         </div>
-
-        <button
-          onClick={handleLogout}
-          style={{
-            width: '100%',
-            background: `linear-gradient(180deg, ${THEME.red} 0%, ${THEME.red2} 100%)`,
-            border: 'none', color: THEME.text,
-            borderRadius: 12, padding: '12px 14px',
-            cursor: 'pointer', textAlign: 'center', fontWeight: 900,
-          }}
-        >
-          Sair
-        </button>
       </div>
     </div>
   );
